@@ -1,0 +1,7 @@
+## Interface: 11200
+## Title: KikiMeter
+## Author: Kikidora
+## Notes: damage/heal meter that syncs between clients for accurate stats
+## Version: 1.0
+
+KikiMeter.lua

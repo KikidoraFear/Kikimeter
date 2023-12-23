@@ -2,6 +2,7 @@
 ## ToDo
 - add buttons on top to reset/pause every table with one click
 - always show self if not in shown bars (either on top or bottom with placement)
+- sort spell details by value
 
 ## State
 - accuracy of values displayed need further testing

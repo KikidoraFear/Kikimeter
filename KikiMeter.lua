@@ -6,11 +6,10 @@
     -- if the target is missing hp however (even if it's just 1), the full renew tick is listed in the combat log and overheal can be detected correctly
 
 -- ToDo: 
-  -- include pets
   -- maybe add buttons on top to reset/pause every table with one click
-  -- show self if not in shown bars (either on top or bottom with placement)
+  -- always show self if not in shown bars (either on top or bottom with placement)
 
-
+  
 -- Infos:
 --   Global API Strings: https://github.com/tekkub/wow-ui-source/blob/1.12.1/FrameXML/GlobalStrings.lua
 
@@ -264,6 +263,15 @@ local pHEALEDCRITSELFOTHER = prepare(HEALEDCRITSELFOTHER) -- Your %s critically 
 local pHEALEDSELFOTHER = prepare(HEALEDSELFOTHER) -- Your %s heals %s for %d.
 local pPERIODICAURAHEALSELFOTHER = prepare(PERIODICAURAHEALSELFOTHER) -- %s gains %d health from your %s.
 
+-- ####### DAMAGE SOURCE:PET TARGET:OTHER
+local pSPELLLOGSCHOOLOTHEROTHER = prepare(SPELLLOGSCHOOLOTHEROTHER) -- %s's %s hits %s for %d %s damage.
+local pSPELLLOGCRITSCHOOLOTHEROTHER = prepare(SPELLLOGCRITSCHOOLOTHEROTHER)  -- %s's %s crits %s for %d %s damage.
+local pSPELLLOGOTHEROTHER = prepare(SPELLLOGOTHEROTHER) -- %s's %s hits %s for %d.
+local pSPELLLOGCRITOTHEROTHER = prepare(SPELLLOGCRITOTHEROTHER) -- %s's %s crits %s for %d.
+local pPERIODICAURADAMAGEOTHEROTHER = prepare(PERIODICAURADAMAGEOTHEROTHER) -- "%s suffers %d %s damage from %s's %s."
+local pCOMBATHITOTHEROTHER = prepare(COMBATHITOTHEROTHER) -- %s hits %s for %d.
+
+
 parser:SetScript("OnEvent", function()
     -- local source = UnitName("player")
     local target = UnitName("player")
@@ -367,6 +375,57 @@ parser:SetScript("OnEvent", function()
       for target, value, attack in string.gfind(arg1, pPERIODICAURAHEALSELFOTHER) do
         local eHeal, oHeal = EOHeal(value, target)
         BroadcastValue(eHeal, attack, oHeal)
+        return
+      end
+
+      -- ####### DAMAGE SOURCE:PET TARGET:OTHER
+      local pet_name = UnitName("pet") -- pet_name has to be checked each event (could be renamed/resummoned)
+      -- other
+       -- %s's %s hits %s for %d %s damage.
+       for source, attack, target, value, school in string.gfind(arg1, pSPELLLOGSCHOOLOTHEROTHER) do
+        if source == pet_name then
+          BroadcastValue(value, "Pet: "..attack, nil)
+        end
+        return
+      end
+
+       -- %s's %s crits %s for %d %s damage.
+      for source, attack, target, value, school in string.gfind(arg1, pSPELLLOGCRITSCHOOLOTHEROTHER) do
+        if source == pet_name then
+          BroadcastValue(value, "Pet: "..attack, nil)
+        end
+        return
+      end
+
+       -- %s's %s hits %s for %d.
+      for source, attack, target, value in string.gfind(arg1, pSPELLLOGOTHEROTHER) do
+        if source == pet_name then
+          BroadcastValue(value, "Pet: "..attack, nil)
+        end
+        return
+      end
+
+       -- %s's %s crits %s for %d.
+      for source, attack, target, value, school in string.gfind(arg1, pSPELLLOGCRITOTHEROTHER) do
+        if source == pet_name then
+          BroadcastValue(value, "Pet: "..attack, nil)
+        end
+        return
+      end
+
+      -- "%s suffers %d %s damage from %s's %s."
+      for target, value, school, source, attack in string.gfind(arg1, pPERIODICAURADAMAGEOTHEROTHER) do
+        if source == pet_name then
+          BroadcastValue(value, "Pet: "..attack, nil)
+        end
+        return
+      end
+
+      -- %s hits %s for %d.
+      for source, target, value in string.gfind(arg1, pCOMBATHITOTHEROTHER) do
+        if source == pet_name then
+          BroadcastValue(value, "Pet: "..attack, nil)
+        end
         return
       end
     end

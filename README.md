@@ -12,7 +12,7 @@
 Only works when in a raid or party!  
 parses your damage and healing done from the combat log and broadcasts values to other players, eliminating
 the issue of inaccuracies caused by players being out of range  
-![Untitled](https://github.com/KikidoraFear/Kikimeter/assets/154637862/8b63d98a-a365-4d8e-b101-5fa5bc9d8aa1)
+![Screenshot 2023-12-24 215930](https://github.com/KikidoraFear/Kikimeter/assets/154637862/44d81538-f125-48e4-abba-926e31e8ded7)
   
 KikiMeter supports
 - tracking of damage (left), effective heal (middle), over heal (right)

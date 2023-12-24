@@ -4,15 +4,9 @@
 -- combat log limitations:
   -- if the target is full hp, hots (tested with Renew) aren't displayed -> in that case overheal cannot be detected
     -- if the target is missing hp however (even if it's just 1), the full renew tick is listed in the combat log and overheal can be detected correctly
-
--- ToDo: 
-  -- maybe add buttons on top to reset/pause every table with one click
-  -- always show self if not in shown bars (either on top or bottom with placement)
-
   
 -- Infos:
 --   Global API Strings: https://github.com/tekkub/wow-ui-source/blob/1.12.1/FrameXML/GlobalStrings.lua
-
 
 -- ##############
 -- # PARAMETERS #
@@ -20,7 +14,7 @@
 
 -- KikiMeter broadcasting ID: km_id x is only able to communicate with km_id x,
 -- so it won't cause problems if people use older versions that are incompatible
-local km_id = '03'
+local km_id = '11'
 
 -- config table
 local config = {
@@ -31,6 +25,7 @@ local config = {
   font_size = 8, -- font size for name and damage numbers
   btn_size = 10, -- size of buttons
   subs = 3, -- number of separate damage meters
+  window_text_height = 10
 }
 config.sub_height = config.bar_height*config.bars_show -- height of one table
 
@@ -158,7 +153,7 @@ local function UpdateBars(bars, sub_type_data)
       bars[idx]:SetScript("OnEnter", function()
         GameTooltip:SetOwner(bars[idx_f], "ANCHOR_LEFT")
         for name, value in sub_type_data._players[player_name] do
-          GameTooltip:AddLine(name..": "..value)
+          GameTooltip:AddDoubleLine(name, value)
         end
         GameTooltip:Show()
       end)
@@ -435,14 +430,20 @@ end)
 -- # LAYOUT #
 -- ##########
 
-local function BarLayout(parent, bar, bar_num)
+local function BarLayout(parent, bar, bar_num, col)
   bar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
   bar:ClearAllPoints()
   bar:SetPoint("TOP", parent, "TOP", 0, -config.bar_height * (bar_num-1))
   bar:SetHeight(config.bar_height)
   bar:SetWidth(config.width)
   bar:SetMinMaxValues(0, 100)
-  bar:SetStatusBarColor(1, 0, 0)
+  if col == 1 then
+    bar:SetStatusBarColor(1, 0, 0)
+  elseif col == 2 then
+    bar:SetStatusBarColor(0, 1, 0)
+  else
+    bar:SetStatusBarColor(0, 0, 1)
+  end
   bar:Hide()
   bar:SetScript("OnLeave", function()
     GameTooltip:Hide()
@@ -451,7 +452,6 @@ end
 
 local function TextLayout(parent, text, pos)
   text:SetFont(STANDARD_TEXT_FONT, config.font_size, "THINOUTLINE")
-  -- text:SetJustifyH(justifyH)
   text:SetFontObject(GameFontWhite)
   text:ClearAllPoints()
   text:SetPoint(pos, parent, pos, 0, 0)
@@ -460,11 +460,11 @@ end
 
 local function WindowLayout(window)
   window:SetBackdrop({bgFile = 'Interface\\Tooltips\\UI-Tooltip-Background'})
-  window:SetBackdropColor(0, 0, 1, 1)
+  window:SetBackdropColor(0, 0, 0, 1)
   window:ClearAllPoints()
   window:SetPoint("RIGHT", UIParent, "RIGHT", -100, -100)
   window:SetWidth(config.width*3 + 2*config.spacing)
-  window:SetHeight(config.sub_height*config.subs + (config.subs-1)*config.spacing)
+  window:SetHeight(config.sub_height*config.subs + (config.subs-1)*config.spacing + config.window_text_height)
   window:EnableMouse(true) -- needed for it to be movable
   window:RegisterForDrag("LeftButton")
   window:SetMovable(true)
@@ -472,11 +472,33 @@ local function WindowLayout(window)
   window:SetScript("OnDragStart", function() window:StartMoving() end)
   window:SetScript("OnDragStop", function() window:StopMovingOrSizing() end)
   window:SetClampedToScreen(true) -- so the window cant be moved out of screen
+
+  window.text_left = window:CreateFontString("Status", "OVERLAY", "GameFontNormal")
+  window.text_left:SetFont(STANDARD_TEXT_FONT, config.font_size, "THINOUTLINE")
+  window.text_left:SetFontObject(GameFontWhite)
+  window.text_left:ClearAllPoints()
+  window.text_left:SetPoint("BOTTOMLEFT", window, "BOTTOMLEFT", 0, 2)
+  window.text_left:SetText("damage done")
+  window.text_left:Show()
+  window.text_center = window:CreateFontString("Status", "OVERLAY", "GameFontNormal")
+  window.text_center:SetFont(STANDARD_TEXT_FONT, config.font_size, "THINOUTLINE")
+  window.text_center:SetFontObject(GameFontWhite)
+  window.text_center:ClearAllPoints()
+  window.text_center:SetPoint("BOTTOM", window, "BOTTOM", 0, 2)
+  window.text_center:SetText("effective healing")
+  window.text_center:Show()
+  window.text_right = window:CreateFontString("Status", "OVERLAY", "GameFontNormal")
+  window.text_right:SetFont(STANDARD_TEXT_FONT, config.font_size, "THINOUTLINE")
+  window.text_right:SetFontObject(GameFontWhite)
+  window.text_right:ClearAllPoints()
+  window.text_right:SetPoint("BOTTOMRIGHT", window, "BOTTOMRIGHT", 0, 2)
+  window.text_right:SetText("over healing")
+  window.text_right:Show()
 end
 
-local function CreateBar(parent, idx)
+local function CreateBar(parent, idx, col)
   parent.bars[idx] = CreateFrame("StatusBar", nil, parent)
-  BarLayout(parent, parent.bars[idx], idx)
+  BarLayout(parent, parent.bars[idx], idx, col)
   
   parent.bars[idx].text_left = parent.bars[idx]:CreateFontString("Status", "OVERLAY", "GameFontNormal")
   TextLayout(parent.bars[idx], parent.bars[idx].text_left, "LEFT")
@@ -494,9 +516,15 @@ local function SubLayout(parent, sub, sub_num)
   sub:SetHeight(config.sub_height)
 end
 
-local function SubTypeLayout(parent, sub_type, sub_type_data, pos_h)
+local function SubTypeLayout(parent, sub_type, sub_type_data, pos_h, col)
   sub_type:SetBackdrop({bgFile = 'Interface\\Tooltips\\UI-Tooltip-Background'})
-  sub_type:SetBackdropColor(1, 0, 1, 1)
+  if col == 1 then
+    sub_type:SetBackdropColor(1, 0.5, 0.5, 1)
+  elseif col == 2 then
+    sub_type:SetBackdropColor(0.5, 1, 0.5, 1)
+  else
+    sub_type:SetBackdropColor(0.5, 0.5, 1, 1)
+  end
   sub_type:SetPoint("TOPLEFT", parent, "TOPLEFT", pos_h, 0)
   sub_type:SetWidth(config.width)
   sub_type:SetHeight(config.sub_height)
@@ -538,13 +566,13 @@ for idx=1,config.subs do
   SubLayout(window, window.sub[idx_f], idx_f)
 
   window.sub[idx_f].dmg = CreateFrame("Frame", nil, window.sub[idx_f])
-  SubTypeLayout(window.sub[idx_f], window.sub[idx_f].dmg, data[idx_f].dmg, 0)
+  SubTypeLayout(window.sub[idx_f], window.sub[idx_f].dmg, data[idx_f].dmg, 0, 1)
 
   window.sub[idx_f].eheal = CreateFrame("Frame", nil, window.sub[idx_f])
-  SubTypeLayout(window.sub[idx_f], window.sub[idx_f].eheal, data[idx_f].eheal, config.width + config.spacing)
+  SubTypeLayout(window.sub[idx_f], window.sub[idx_f].eheal, data[idx_f].eheal, config.width + config.spacing, 2)
 
   window.sub[idx_f].oheal = CreateFrame("Frame", nil, window.sub[idx_f])
-  SubTypeLayout(window.sub[idx_f], window.sub[idx_f].oheal, data[idx_f].oheal, 2*config.width + 2*config.spacing)
+  SubTypeLayout(window.sub[idx_f], window.sub[idx_f].oheal, data[idx_f].oheal, 2*config.width + 2*config.spacing, 3)
 
   window.sub[idx_f].btnReset = CreateFrame("Button", nil, window.sub[idx_f])
   ButtonLayout(window.sub[idx_f], window.sub[idx_f].btnReset, "Reset", 0)
@@ -576,9 +604,9 @@ for idx=1,config.subs do
   window.sub[idx].oheal.bars = {}
 
   for idx_bar = 1,config.bars_show do
-    CreateBar(window.sub[idx].dmg, idx_bar)
-    CreateBar(window.sub[idx].eheal, idx_bar)
-    CreateBar(window.sub[idx].oheal, idx_bar)
+    CreateBar(window.sub[idx].dmg, idx_bar, 1)
+    CreateBar(window.sub[idx].eheal, idx_bar, 2)
+    CreateBar(window.sub[idx].oheal, idx_bar, 3)
   end
 end
 

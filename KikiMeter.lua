@@ -141,7 +141,6 @@ local function UpdateBars(bars, sub_type_data)
       bars[idx].text_left:Hide()
       bars[idx].text_right:Hide()
       bars[idx]:Hide()
-      bars[idx]:EnableMouse(true)
     else
       local rank = idx-sub_type_data._scroll -- idx=1, scroll=-1 -> rank on top = 2
       local player_name = sub_type_data._ranking[rank] -- table_ranking[idx] returns player_name and shows rank 1 first, table_ranking[idx-scroll] with scroll=-1 shows rank 2 first
@@ -153,7 +152,6 @@ local function UpdateBars(bars, sub_type_data)
       bars[idx].text_right:Show()
       bars[idx]:SetValue(value/sub_type_data._max*100)
       bars[idx]:Show()
-      bars[idx]:EnableMouse(true)
       bars[idx]:SetScript("OnEnter", function()
         GameTooltip:SetOwner(bars[idx_f], "ANCHOR_LEFT")
         for rank_attack = 1, num_attacks do
@@ -172,7 +170,7 @@ end
 -- ########
 
 local data = {}
-InitData(data, 1, config.subs)
+InitData(data, 1, config.subs) -- init all subs
 
 
 -- ############################################
@@ -181,52 +179,35 @@ InitData(data, 1, config.subs)
 
 local parser = CreateFrame("Frame")
 
--- -- ####### DAMAGE COMBAT EVENTS
--- parser:RegisterEvent("CHAT_MSG_COMBAT_SELF_HITS")
--- -- parser:RegisterEvent("CHAT_MSG_COMBAT_PET_HITS")
-
--- -- ####### DAMAGE SPELL EVENTS
--- parser:RegisterEvent("CHAT_MSG_SPELL_PERIODIC_SELF_DAMAGE")
--- parser:RegisterEvent("CHAT_MSG_SPELL_SELF_DAMAGE")
--- parser:RegisterEvent("CHAT_MSG_SPELL_DAMAGESHIELDS_ON_SELF")
--- -- parser:RegisterEvent("CHAT_MSG_SPELL_PET_DAMAGE")
-
--- -- ####### HEAL/DMG SPELL EVENTS
--- parser:RegisterEvent("CHAT_MSG_SPELL_SELF_BUFF")
--- parser:RegisterEvent("CHAT_MSG_SPELL_PERIODIC_SELF_BUFFS")
--- parser:RegisterEvent("CHAT_MSG_SPELL_FRIENDLYPLAYER_BUFF")
--- parser:RegisterEvent("CHAT_MSG_SPELL_PERIODIC_FRIENDLYPLAYER_BUFFS")
--- parser:RegisterEvent("CHAT_MSG_SPELL_HOSTILEPLAYER_BUFF")
--- parser:RegisterEvent("CHAT_MSG_SPELL_PARTY_BUFF")
--- parser:RegisterEvent("CHAT_MSG_SPELL_PERIODIC_PARTY_BUFFS")
-
--- events are a total mess, using the ones from ShaguDPS...
--- register to all damage combat log events
+-- events are a total mess, better register to many than too little
+-- SPELL DAMAGE events
 parser:RegisterEvent("CHAT_MSG_SPELL_DAMAGESHIELDS_ON_SELF")
 parser:RegisterEvent("CHAT_MSG_SPELL_DAMAGESHIELDS_ON_OTHERS")
 parser:RegisterEvent("CHAT_MSG_SPELL_SELF_DAMAGE")
 parser:RegisterEvent("CHAT_MSG_SPELL_PERIODIC_SELF_DAMAGE")
-parser:RegisterEvent("CHAT_MSG_COMBAT_SELF_HITS")
 parser:RegisterEvent("CHAT_MSG_SPELL_PARTY_DAMAGE")
 parser:RegisterEvent("CHAT_MSG_SPELL_PERIODIC_PARTY_DAMAGE")
-parser:RegisterEvent("CHAT_MSG_COMBAT_PARTY_HITS")
 parser:RegisterEvent("CHAT_MSG_SPELL_HOSTILEPLAYER_DAMAGE")
 parser:RegisterEvent("CHAT_MSG_SPELL_PERIODIC_HOSTILEPLAYER_DAMAGE")
-parser:RegisterEvent("CHAT_MSG_COMBAT_HOSTILEPLAYER_HITS")
 parser:RegisterEvent("CHAT_MSG_SPELL_FRIENDLYPLAYER_DAMAGE")
 parser:RegisterEvent("CHAT_MSG_SPELL_PERIODIC_FRIENDLYPLAYER_DAMAGE")
-parser:RegisterEvent("CHAT_MSG_COMBAT_FRIENDLYPLAYER_HITS")
 parser:RegisterEvent("CHAT_MSG_SPELL_CREATURE_VS_CREATURE_DAMAGE")
-parser:RegisterEvent("CHAT_MSG_COMBAT_CREATURE_VS_CREATURE_HITS")
 parser:RegisterEvent("CHAT_MSG_SPELL_PERIODIC_CREATURE_DAMAGE")
 parser:RegisterEvent("CHAT_MSG_SPELL_CREATURE_VS_PARTY_DAMAGE")
 parser:RegisterEvent("CHAT_MSG_SPELL_CREATURE_VS_SELF_DAMAGE")
+parser:RegisterEvent("CHAT_MSG_SPELL_PET_DAMAGE")
+
+-- COMBAT DAMAGE events
+parser:RegisterEvent("CHAT_MSG_COMBAT_SELF_HITS")
+parser:RegisterEvent("CHAT_MSG_COMBAT_PARTY_HITS")
+parser:RegisterEvent("CHAT_MSG_COMBAT_HOSTILEPLAYER_HITS")
+parser:RegisterEvent("CHAT_MSG_COMBAT_FRIENDLYPLAYER_HITS")
+parser:RegisterEvent("CHAT_MSG_COMBAT_CREATURE_VS_CREATURE_HITS")
 parser:RegisterEvent("CHAT_MSG_COMBAT_CREATURE_VS_PARTY_HITS")
 parser:RegisterEvent("CHAT_MSG_COMBAT_CREATURE_VS_SELF_HITS")
-parser:RegisterEvent("CHAT_MSG_SPELL_PET_DAMAGE")
 parser:RegisterEvent("CHAT_MSG_COMBAT_PET_HITS")
 
--- register to all heal combat log events
+-- SPELL HEAL events
 parser:RegisterEvent("CHAT_MSG_SPELL_SELF_BUFF")
 parser:RegisterEvent("CHAT_MSG_SPELL_PERIODIC_SELF_BUFFS")
 parser:RegisterEvent("CHAT_MSG_SPELL_FRIENDLYPLAYER_BUFF")
@@ -237,39 +218,39 @@ parser:RegisterEvent("CHAT_MSG_SPELL_PARTY_BUFF")
 parser:RegisterEvent("CHAT_MSG_SPELL_PERIODIC_PARTY_BUFFS")
 
 
-local function prepare(template) -- prepare global string for regex
-  template = gsub(template, "%%s", "(.+)")
+local function MakeGfindReady(template) -- changes global string to fit gfind pattern
+  template = gsub(template, "%%s", "(.+)") -- % is escape: %%s = %s raw
   return gsub(template, "%%d", "(%%d+)")
 end
 
 -- ####### DAMAGE SOURCE:ME TARGET:OTHER
-local pSPELLLOGSCHOOLSELFOTHER = prepare(SPELLLOGSCHOOLSELFOTHER) -- Your %s hits %s for %d %s damage.
-local pSPELLLOGCRITSCHOOLSELFOTHER = prepare(SPELLLOGCRITSCHOOLSELFOTHER) -- Your %s crits %s for %d %s damage.
-local pSPELLLOGSELFOTHER = prepare(SPELLLOGSELFOTHER) -- Your %s hits %s for %d.
-local pSPELLLOGCRITSELFOTHER = prepare(SPELLLOGCRITSELFOTHER) -- Your %s crits %s for %d.
-local pPERIODICAURADAMAGESELFOTHER = prepare(PERIODICAURADAMAGESELFOTHER) -- %s suffers %d %s damage from your %s.
-local pCOMBATHITSELFOTHER = prepare(COMBATHITSELFOTHER) -- You hit %s for %d.
-local pCOMBATHITCRITSELFOTHER = prepare(COMBATHITCRITSELFOTHER) -- You crit %s for %d.
-local pCOMBATHITSCHOOLSELFOTHER = prepare(COMBATHITSCHOOLSELFOTHER) -- You hit %s for %d %s damage.
-local pCOMBATHITCRITSCHOOLSELFOTHER = prepare(COMBATHITCRITSCHOOLSELFOTHER) -- You crit %s for %d %s damage.
+local pSPELLLOGSCHOOLSELFOTHER = MakeGfindReady(SPELLLOGSCHOOLSELFOTHER) -- Your %s hits %s for %d %s damage.
+local pSPELLLOGCRITSCHOOLSELFOTHER = MakeGfindReady(SPELLLOGCRITSCHOOLSELFOTHER) -- Your %s crits %s for %d %s damage.
+local pSPELLLOGSELFOTHER = MakeGfindReady(SPELLLOGSELFOTHER) -- Your %s hits %s for %d.
+local pSPELLLOGCRITSELFOTHER = MakeGfindReady(SPELLLOGCRITSELFOTHER) -- Your %s crits %s for %d.
+local pPERIODICAURADAMAGESELFOTHER = MakeGfindReady(PERIODICAURADAMAGESELFOTHER) -- %s suffers %d %s damage from your %s.
+local pCOMBATHITSELFOTHER = MakeGfindReady(COMBATHITSELFOTHER) -- You hit %s for %d.
+local pCOMBATHITCRITSELFOTHER = MakeGfindReady(COMBATHITCRITSELFOTHER) -- You crit %s for %d.
+local pCOMBATHITSCHOOLSELFOTHER = MakeGfindReady(COMBATHITSCHOOLSELFOTHER) -- You hit %s for %d %s damage.
+local pCOMBATHITCRITSCHOOLSELFOTHER = MakeGfindReady(COMBATHITCRITSCHOOLSELFOTHER) -- You crit %s for %d %s damage.
 
 -- ####### HEAL SOURCE:ME TARGET:ME
-local pHEALEDCRITSELFSELF = prepare(HEALEDCRITSELFSELF) -- Your %s critically heals you for %d.
-local pHEALEDSELFSELF = prepare(HEALEDSELFSELF) -- Your %s heals you for %d.
-local pPERIODICAURAHEALSELFSELF = prepare(PERIODICAURAHEALSELFSELF) -- You gain %d health from %s.
+local pHEALEDCRITSELFSELF = MakeGfindReady(HEALEDCRITSELFSELF) -- Your %s critically heals you for %d.
+local pHEALEDSELFSELF = MakeGfindReady(HEALEDSELFSELF) -- Your %s heals you for %d.
+local pPERIODICAURAHEALSELFSELF = MakeGfindReady(PERIODICAURAHEALSELFSELF) -- You gain %d health from %s.
 
 -- ####### HEAL SOURCE:ME TARGET:OTHER
-local pHEALEDCRITSELFOTHER = prepare(HEALEDCRITSELFOTHER) -- Your %s critically heals %s for %d.
-local pHEALEDSELFOTHER = prepare(HEALEDSELFOTHER) -- Your %s heals %s for %d.
-local pPERIODICAURAHEALSELFOTHER = prepare(PERIODICAURAHEALSELFOTHER) -- %s gains %d health from your %s.
+local pHEALEDCRITSELFOTHER = MakeGfindReady(HEALEDCRITSELFOTHER) -- Your %s critically heals %s for %d.
+local pHEALEDSELFOTHER = MakeGfindReady(HEALEDSELFOTHER) -- Your %s heals %s for %d.
+local pPERIODICAURAHEALSELFOTHER = MakeGfindReady(PERIODICAURAHEALSELFOTHER) -- %s gains %d health from your %s.
 
 -- ####### DAMAGE SOURCE:PET TARGET:OTHER
-local pSPELLLOGSCHOOLOTHEROTHER = prepare(SPELLLOGSCHOOLOTHEROTHER) -- %s's %s hits %s for %d %s damage.
-local pSPELLLOGCRITSCHOOLOTHEROTHER = prepare(SPELLLOGCRITSCHOOLOTHEROTHER)  -- %s's %s crits %s for %d %s damage.
-local pSPELLLOGOTHEROTHER = prepare(SPELLLOGOTHEROTHER) -- %s's %s hits %s for %d.
-local pSPELLLOGCRITOTHEROTHER = prepare(SPELLLOGCRITOTHEROTHER) -- %s's %s crits %s for %d.
-local pPERIODICAURADAMAGEOTHEROTHER = prepare(PERIODICAURADAMAGEOTHEROTHER) -- "%s suffers %d %s damage from %s's %s."
-local pCOMBATHITOTHEROTHER = prepare(COMBATHITOTHEROTHER) -- %s hits %s for %d.
+local pSPELLLOGSCHOOLOTHEROTHER = MakeGfindReady(SPELLLOGSCHOOLOTHEROTHER) -- %s's %s hits %s for %d %s damage.
+local pSPELLLOGCRITSCHOOLOTHEROTHER = MakeGfindReady(SPELLLOGCRITSCHOOLOTHEROTHER)  -- %s's %s crits %s for %d %s damage.
+local pSPELLLOGOTHEROTHER = MakeGfindReady(SPELLLOGOTHEROTHER) -- %s's %s hits %s for %d.
+local pSPELLLOGCRITOTHEROTHER = MakeGfindReady(SPELLLOGCRITOTHEROTHER) -- %s's %s crits %s for %d.
+local pPERIODICAURADAMAGEOTHEROTHER = MakeGfindReady(PERIODICAURADAMAGEOTHEROTHER) -- "%s suffers %d %s damage from %s's %s."
+local pCOMBATHITOTHEROTHER = MakeGfindReady(COMBATHITOTHEROTHER) -- %s hits %s for %d.
 
 
 parser:SetScript("OnEvent", function()
@@ -442,6 +423,7 @@ local function BarLayout(parent, bar, bar_num, col)
   bar:SetHeight(config.bar_height)
   bar:SetWidth(config.width)
   bar:SetMinMaxValues(0, 100)
+  bar:EnableMouse(true)
   if col == 1 then
     bar:SetStatusBarColor(1, 0, 0)
   elseif col == 2 then
@@ -455,11 +437,11 @@ local function BarLayout(parent, bar, bar_num, col)
   end)
 end
 
-local function TextLayout(parent, text, pos)
+local function TextLayout(parent, text, align, pos_h, pos_v)
   text:SetFont(STANDARD_TEXT_FONT, config.font_size, "THINOUTLINE")
   text:SetFontObject(GameFontWhite)
   text:ClearAllPoints()
-  text:SetPoint(pos, parent, pos, 0, 0)
+  text:SetPoint(align, parent, align, pos_h, pos_v)
   text:Hide()
 end
 
@@ -479,24 +461,17 @@ local function WindowLayout(window)
   window:SetClampedToScreen(true) -- so the window cant be moved out of screen
 
   window.text_left = window:CreateFontString("Status", "OVERLAY", "GameFontNormal")
-  window.text_left:SetFont(STANDARD_TEXT_FONT, config.font_size, "THINOUTLINE")
-  window.text_left:SetFontObject(GameFontWhite)
-  window.text_left:ClearAllPoints()
-  window.text_left:SetPoint("BOTTOMLEFT", window, "BOTTOMLEFT", 0, 2)
+  TextLayout(window, window.text_left, "BOTTOMLEFT", 0, 2)
   window.text_left:SetText("damage done")
   window.text_left:Show()
+
   window.text_center = window:CreateFontString("Status", "OVERLAY", "GameFontNormal")
-  window.text_center:SetFont(STANDARD_TEXT_FONT, config.font_size, "THINOUTLINE")
-  window.text_center:SetFontObject(GameFontWhite)
-  window.text_center:ClearAllPoints()
-  window.text_center:SetPoint("BOTTOM", window, "BOTTOM", 0, 2)
+  TextLayout(window, window.text_left, "BOTTOM", 0, 2)
   window.text_center:SetText("effective healing")
   window.text_center:Show()
+
   window.text_right = window:CreateFontString("Status", "OVERLAY", "GameFontNormal")
-  window.text_right:SetFont(STANDARD_TEXT_FONT, config.font_size, "THINOUTLINE")
-  window.text_right:SetFontObject(GameFontWhite)
-  window.text_right:ClearAllPoints()
-  window.text_right:SetPoint("BOTTOMRIGHT", window, "BOTTOMRIGHT", 0, 2)
+  TextLayout(window, window.text_left, "BOTTOMRIGHT", 0, 2)
   window.text_right:SetText("over healing")
   window.text_right:Show()
 end
@@ -506,10 +481,10 @@ local function CreateBar(parent, idx, col)
   BarLayout(parent, parent.bars[idx], idx, col)
   
   parent.bars[idx].text_left = parent.bars[idx]:CreateFontString("Status", "OVERLAY", "GameFontNormal")
-  TextLayout(parent.bars[idx], parent.bars[idx].text_left, "LEFT")
+  TextLayout(parent.bars[idx], parent.bars[idx].text_left, "LEFT",0,0)
 
   parent.bars[idx].text_right = parent.bars[idx]:CreateFontString("Status", "OVERLAY", "GameFontNormal")
-  TextLayout(parent.bars[idx], parent.bars[idx].text_right, "RIGHT")
+  TextLayout(parent.bars[idx], parent.bars[idx].text_right, "RIGHT",0,0)
 end
 
 local function SubLayout(parent, sub, sub_num)
@@ -589,14 +564,9 @@ for idx=1,config.subs do
     UpdateBars(window.sub[idx_f].oheal.bars, data[idx_f].oheal)
   end)
   window.sub[idx_f].btnReset.text = window:CreateFontString("Status", "OVERLAY", "GameFontNormal")
-  window.sub[idx_f].btnReset.text:SetFont(STANDARD_TEXT_FONT, config.font_size, "THINOUTLINE")
-  window.sub[idx_f].btnReset.text:SetFontObject(GameFontWhite)
-  window.sub[idx_f].btnReset.text:ClearAllPoints()
-  window.sub[idx_f].btnReset.text:SetPoint("LEFT", window.sub[idx_f].btnReset, "LEFT", 0, 0)
+  TextLayout(window.sub[idx_f].btnReset, window.sub[idx_f].btnReset.text, "LEFT", 0, 0)
   window.sub[idx_f].btnReset.text:SetText("R")
   window.sub[idx_f].btnReset.text:Show()
-  
-  
 
   window.sub[idx].btnPause = CreateFrame("Button", nil, window.sub[idx])
   ButtonLayout(window.sub[idx], window.sub[idx].btnPause, "Pause", -config.btn_size-config.spacing)
@@ -612,10 +582,7 @@ for idx=1,config.subs do
     end
   end)
   window.sub[idx_f].btnPause.text = window:CreateFontString("Status", "OVERLAY", "GameFontNormal")
-  window.sub[idx_f].btnPause.text:SetFont(STANDARD_TEXT_FONT, config.font_size, "THINOUTLINE")
-  window.sub[idx_f].btnPause.text:SetFontObject(GameFontWhite)
-  window.sub[idx_f].btnPause.text:ClearAllPoints()
-  window.sub[idx_f].btnPause.text:SetPoint("LEFT", window.sub[idx_f].btnPause, "LEFT", 0, 0)
+  TextLayout(window.sub[idx_f].btnPause, window.sub[idx_f].btnPause.text, "LEFT", 0, 0)
   window.sub[idx_f].btnPause.text:SetText("P")
   window.sub[idx_f].btnPause.text:Show()
 

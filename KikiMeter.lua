@@ -588,6 +588,14 @@ for idx=1,config.subs do
     UpdateBars(window.sub[idx_f].eheal.bars, data[idx_f].eheal)
     UpdateBars(window.sub[idx_f].oheal.bars, data[idx_f].oheal)
   end)
+  window.sub[idx_f].btnReset.text = window:CreateFontString("Status", "OVERLAY", "GameFontNormal")
+  window.sub[idx_f].btnReset.text:SetFont(STANDARD_TEXT_FONT, config.font_size, "THINOUTLINE")
+  window.sub[idx_f].btnReset.text:SetFontObject(GameFontWhite)
+  window.sub[idx_f].btnReset.text:ClearAllPoints()
+  window.sub[idx_f].btnReset.text:SetPoint("LEFT", window.sub[idx_f].btnReset, "LEFT", 0, 0)
+  window.sub[idx_f].btnReset.text:SetText("R")
+  window.sub[idx_f].btnReset.text:Show()
+  
   
 
   window.sub[idx].btnPause = CreateFrame("Button", nil, window.sub[idx])
@@ -603,6 +611,13 @@ for idx=1,config.subs do
       window.sub[idx_f].btnPause:SetBackdropColor(0, 0, 0, 1)
     end
   end)
+  window.sub[idx_f].btnPause.text = window:CreateFontString("Status", "OVERLAY", "GameFontNormal")
+  window.sub[idx_f].btnPause.text:SetFont(STANDARD_TEXT_FONT, config.font_size, "THINOUTLINE")
+  window.sub[idx_f].btnPause.text:SetFontObject(GameFontWhite)
+  window.sub[idx_f].btnPause.text:ClearAllPoints()
+  window.sub[idx_f].btnPause.text:SetPoint("LEFT", window.sub[idx_f].btnPause, "LEFT", 0, 0)
+  window.sub[idx_f].btnPause.text:SetText("P")
+  window.sub[idx_f].btnPause.text:Show()
 
   window.sub[idx].dmg.bars = {}
   window.sub[idx].eheal.bars = {}

@@ -14,7 +14,7 @@
 
 -- KikiMeter broadcasting ID: km_id x is only able to communicate with km_id x,
 -- so it won't cause problems if people use older versions that are incompatible
-local km_id = '11'
+local km_id = '1' -- corresponds to addon version (1.1 -> 1.2: no change in messages sent; 1.2 -> 2.0: change in messages sent = not compatible)
 
 -- config table
 local config = {
@@ -44,8 +44,9 @@ local function InitData(data, min_loop, max_loop) -- init data table
     -- data[sub_number].dmg._max = value
     -- data[sub_number].dmg._scroll = value
     -- data[sub_number].dmg._ranking[rank] = player_name
-    -- data[sub_number].dmg._players[name][attack] = value
+    -- data[sub_number].dmg._players[name]._attacks[attack] = value
     -- data[sub_number].dmg._players[name]._sum = value
+    -- data[sub_number].dmg._players[name]._ranking[rank] = attack
     data[idx].dmg = {}
     data[idx].dmg._max = 0
     data[idx].dmg._scroll = 0
@@ -55,8 +56,9 @@ local function InitData(data, min_loop, max_loop) -- init data table
     -- data[sub_number].eheal._max = value
     -- data[sub_number].eheal._scroll = value
     -- data[sub_number].eheal._ranking[rank] = player_name
-    -- data[sub_number].eheal._players[name][attack] = value
+    -- data[sub_number].eheal._players[name]._attacks[attack] = value
     -- data[sub_number].eheal._players[name]._sum = value
+    -- data[sub_number].eheal._players[name]._ranking[rank] = attack
     data[idx].eheal = {}
     data[idx].eheal._max = 0
     data[idx].eheal._scroll = 0
@@ -66,8 +68,9 @@ local function InitData(data, min_loop, max_loop) -- init data table
     -- data[sub_number].oheal._players[name][attack] = value
     -- data[sub_number].oheal._players[name]._sum = value
     -- data[sub_number].oheal._ranking[rank] = player_name
-    -- data[sub_number].oheal._players[name][attack] = value
+    -- data[sub_number].oheal._players[name]._attacks[attack] = value
     -- data[sub_number].oheal._players[name]._sum = value
+    -- data[sub_number].oheal._players[name]._ranking[rank] = attack
     data[idx].oheal = {}
     data[idx].oheal._max = 0
     data[idx].oheal._scroll = 0
@@ -143,6 +146,7 @@ local function UpdateBars(bars, sub_type_data)
       local rank = idx-sub_type_data._scroll -- idx=1, scroll=-1 -> rank on top = 2
       local player_name = sub_type_data._ranking[rank] -- table_ranking[idx] returns player_name and shows rank 1 first, table_ranking[idx-scroll] with scroll=-1 shows rank 2 first
       local value = sub_type_data._players[player_name]._sum -- use name from table_ranking to get value from table
+      local num_attacks = getArLength(sub_type_data._players[player_name]._ranking)
       bars[idx].text_left:SetText(rank.."."..player_name)
       bars[idx].text_left:Show()
       bars[idx].text_right:SetText(sub_type_data._players[player_name]._sum)
@@ -152,8 +156,9 @@ local function UpdateBars(bars, sub_type_data)
       bars[idx]:EnableMouse(true)
       bars[idx]:SetScript("OnEnter", function()
         GameTooltip:SetOwner(bars[idx_f], "ANCHOR_LEFT")
-        for name, value in sub_type_data._players[player_name] do
-          GameTooltip:AddDoubleLine(name, value)
+        for rank_attack = 1, num_attacks do
+          local attack = sub_type_data._players[player_name]._ranking[rank_attack]
+          GameTooltip:AddDoubleLine(attack, sub_type_data._players[player_name]._attacks[attack])
         end
         GameTooltip:Show()
       end)
@@ -618,9 +623,19 @@ end
 local function GetRank(sub_type_players_data) --sub_type[player_name]._sum = value
   local ranking = {}
   for key, _ in pairs(sub_type_players_data) do
-    table.insert(ranking, key) -- creates a table with keys (=player_names)
+    table.insert(ranking, key) -- creates an array with keys (=player_names)
   end
   table.sort(ranking, function(keyRhs, keyLhs) return sub_type_players_data[keyLhs]._sum < sub_type_players_data[keyRhs]._sum end) -- sorts player_names by value (dmg or heal)
+
+  return ranking -- ranking is an array ranking[1] = "Kikidora",...
+end
+
+local function GetRankAttack(sub_type_players_attacks_data)
+  local ranking = {}
+  for key, _ in pairs(sub_type_players_attacks_data) do
+    table.insert(ranking, key) -- creates an array with keys (=attacks)
+  end
+  table.sort(ranking, function(keyRhs, keyLhs) return sub_type_players_attacks_data[keyLhs] < sub_type_players_attacks_data[keyRhs] end) -- sorts player_names by value (dmg or heal)
 
   return ranking -- ranking is an array ranking[1] = "Kikidora",...
 end
@@ -629,20 +644,22 @@ local function AddData(sub_type_data, player_name, attack, value)
   if not sub_type_data._players[player_name] then
     sub_type_data._players[player_name] = {}
     sub_type_data._players[player_name]._sum = 0 -- if player doesnt exist, init sum
+    sub_type_data._players[player_name]._attacks = {} -- if player doesnt exist, init attacks
   end
 
-  if not sub_type_data._players[player_name][attack] then
-    sub_type_data._players[player_name][attack] = 0 -- if attack for player doesnt exist, init value
+  if not sub_type_data._players[player_name]._attacks[attack] then
+    sub_type_data._players[player_name]._attacks[attack] = 0 -- if attack for player doesnt exist, init value
   end
 
   sub_type_data._players[player_name]._sum = sub_type_data._players[player_name]._sum + tonumber(value)
-  sub_type_data._players[player_name][attack] = sub_type_data._players[player_name][attack] + tonumber(value)
+  sub_type_data._players[player_name]._attacks[attack] = sub_type_data._players[player_name]._attacks[attack] + tonumber(value)
 
   if sub_type_data._players[player_name]._sum > sub_type_data._max then
     sub_type_data._max = sub_type_data._players[player_name]._sum -- update max value
   end
 
   sub_type_data._ranking = GetRank(sub_type_data._players) -- update rankings
+  sub_type_data._players[player_name]._ranking = GetRankAttack(sub_type_data._players[player_name]._attacks)
 end
 
 window:RegisterEvent("CHAT_MSG_ADDON")

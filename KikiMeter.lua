@@ -687,10 +687,12 @@ end)
 -- hide all windows
 local btnHide = {}
 btnHide = CreateFrame("Button")
-ButtonLayout(window, btnHide, "Hide", "BOTTOMRIGHT", "TOPRIGHT", 0)
-btnHide.text = window:CreateFontString("Status", "OVERLAY", "GameFontNormal")
+ButtonLayout(window, btnHide, "Hide/Unhide", "BOTTOMRIGHT", "TOPRIGHT", 0)
+btnHide:SetWidth(41)
+btnHide:SetBackdropColor(0, 0, 0, 1)
+btnHide.text = btnHide:CreateFontString("Status", "OVERLAY", "GameFontNormal")
 TextLayout(btnHide, btnHide.text, "LEFT", 0, 0)
-btnHide.text:SetText("H")
+btnHide.text:SetText("Kikimeter")
 btnHide.text:Show()
 btnHide:SetScript("OnClick", function()
     if not gui_hidden then

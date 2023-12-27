@@ -16,6 +16,8 @@
 -- so it won't cause problems if people use older versions that are incompatible
 local km_id = '1' -- corresponds to addon version (1.1 -> 1.2: no change in messages sent; 1.2 -> 2.0: change in messages sent = not compatible)
 
+local gui_hidden = false -- hides the window
+
 -- config table
 local config = {
   width = 110, -- width of bars
@@ -466,12 +468,12 @@ local function WindowLayout(window)
   window.text_left:Show()
 
   window.text_center = window:CreateFontString("Status", "OVERLAY", "GameFontNormal")
-  TextLayout(window, window.text_left, "BOTTOM", 0, 2)
+  TextLayout(window, window.text_center, "BOTTOM", 0, 2)
   window.text_center:SetText("effective healing")
   window.text_center:Show()
 
   window.text_right = window:CreateFontString("Status", "OVERLAY", "GameFontNormal")
-  TextLayout(window, window.text_left, "BOTTOMRIGHT", 0, 2)
+  TextLayout(window, window.text_right, "BOTTOMRIGHT", 0, 2)
   window.text_right:SetText("over healing")
   window.text_right:Show()
 end
@@ -505,6 +507,7 @@ local function SubTypeLayout(parent, sub_type, sub_type_data, pos_h, col)
   else
     sub_type:SetBackdropColor(0.5, 0.5, 1, 1)
   end
+  sub_type:ClearAllPoints()
   sub_type:SetPoint("TOPLEFT", parent, "TOPLEFT", pos_h, 0)
   sub_type:SetWidth(config.width)
   sub_type:SetHeight(config.sub_height)
@@ -519,8 +522,9 @@ local function SubTypeLayout(parent, sub_type, sub_type_data, pos_h, col)
   end)
 end
 
-local function ButtonLayout(parent, btn, tooltip_txt, pos_v)
-  btn:SetPoint("TOPRIGHT", parent, "TOPLEFT", 0, pos_v)
+local function ButtonLayout(parent, btn, tooltip_txt, pos_btn, pos_parent, pos_v)
+  btn:ClearAllPoints()
+  btn:SetPoint(pos_btn, parent, pos_parent, 0, pos_v)
   btn:SetHeight(config.btn_size)
   btn:SetWidth(config.btn_size)
   btn:SetBackdrop({bgFile = 'Interface\\Tooltips\\UI-Tooltip-Background'})
@@ -555,7 +559,7 @@ for idx=1,config.subs do
   SubTypeLayout(window.sub[idx_f], window.sub[idx_f].oheal, data[idx_f].oheal, 2*config.width + 2*config.spacing, 3)
 
   window.sub[idx_f].btnReset = CreateFrame("Button", nil, window.sub[idx_f])
-  ButtonLayout(window.sub[idx_f], window.sub[idx_f].btnReset, "Reset", 0)
+  ButtonLayout(window.sub[idx_f], window.sub[idx_f].btnReset, "Reset", "TOPRIGHT", "TOPLEFT", 0)
   window.sub[idx_f].btnReset:SetScript("OnClick", function()
     DEFAULT_CHAT_FRAME:AddMessage("KikiMeter "..idx_f.." has been reset.")
     InitData(data, idx_f, idx_f)
@@ -569,7 +573,7 @@ for idx=1,config.subs do
   window.sub[idx_f].btnReset.text:Show()
 
   window.sub[idx].btnPause = CreateFrame("Button", nil, window.sub[idx])
-  ButtonLayout(window.sub[idx], window.sub[idx].btnPause, "Pause", -config.btn_size-config.spacing)
+  ButtonLayout(window.sub[idx], window.sub[idx].btnPause, "Pause", "TOPRIGHT", "TOPLEFT", -config.btn_size-config.spacing)
   window.sub[idx].btnPause:SetScript("OnClick", function()
     if data[idx_f]._paused then
       DEFAULT_CHAT_FRAME:AddMessage("KikiMeter "..idx_f.." has been unpaused.")
@@ -678,4 +682,22 @@ window:SetScript("OnEvent", function()
       end
     end
   end
+end)
+
+-- hide all windows
+local btnHide = {}
+btnHide = CreateFrame("Button")
+ButtonLayout(window, btnHide, "Hide", "BOTTOMRIGHT", "TOPRIGHT", 0)
+btnHide.text = window:CreateFontString("Status", "OVERLAY", "GameFontNormal")
+TextLayout(btnHide, btnHide.text, "LEFT", 0, 0)
+btnHide.text:SetText("H")
+btnHide.text:Show()
+btnHide:SetScript("OnClick", function()
+    if not gui_hidden then
+      window:Hide()
+      gui_hidden = true
+    else
+      window:Show()
+      gui_hidden = false
+    end
 end)

@@ -133,20 +133,13 @@ end
 -- update bars and text with new values and show them
 local function UpdateBars(bars, sub_type_data)
 
-  local num_players = getArLength(sub_type_data._ranking)
-  -- if scroll = -1, bars_show = 5, num_players = 3 -> bars_shown = 2
-  local bars_shown = math.min(config.bars_show, num_players+sub_type_data._scroll)
-
   for idx=1, config.bars_show do
     local idx_f = idx -- for SetScript, otherwise last from loop idx is used
-    if idx > bars_shown then -- hide bars with no data or not within scroll
-      bars[idx].text_left:Hide()
-      bars[idx].text_right:Hide()
-      bars[idx]:Hide()
-    else
-      local rank = idx-sub_type_data._scroll -- idx=1, scroll=-1 -> rank on top = 2
-      local player_name = sub_type_data._ranking[rank] -- table_ranking[idx] returns player_name and shows rank 1 first, table_ranking[idx-scroll] with scroll=-1 shows rank 2 first
-      local value = sub_type_data._players[player_name]._sum -- use name from table_ranking to get value from table
+    local rank = idx+sub_type_data._scroll -- idx=1, scroll=1 -> rank on top = 2
+
+    if sub_type_data._ranking[rank] then
+      local player_name = sub_type_data._ranking[rank]
+      local value = sub_type_data._players[player_name]._sum
       local num_attacks = getArLength(sub_type_data._players[player_name]._ranking)
       bars[idx].text_left:SetText(rank.."."..player_name)
       bars[idx].text_left:Show()
@@ -162,6 +155,10 @@ local function UpdateBars(bars, sub_type_data)
         end
         GameTooltip:Show()
       end)
+    else -- hide bars with no data
+      bars[idx].text_left:Hide()
+      bars[idx].text_right:Hide()
+      bars[idx]:Hide()
     end
   end
 end
@@ -524,11 +521,11 @@ local function SubTypeLayout(parent, sub_type, sub_type_data, pos_h, col)
   sub_type:EnableMouseWheel(true)
   sub_type:SetScript("OnMouseWheel", function()
     if getArLength(sub_type_data._ranking) > 0 then
-      -- scrolling from 0 to -player_num + 1, so that at least 1 player is always shown
-      local min_scroll = -getArLength(sub_type_data._ranking) + 1
-      sub_type_data._scroll = math.min(math.max(sub_type_data._scroll+arg1, min_scroll),0)
+      -- scrolling from 0 to player_num - 1, so that at least 1 player is always shown
+      local max_scroll = getArLength(sub_type_data._ranking) - 1
+      sub_type_data._scroll = math.max(math.min(sub_type_data._scroll-arg1, max_scroll),0)
+      UpdateBars(sub_type.bars, sub_type_data)
     end
-    UpdateBars(sub_type.bars, sub_type_data)
   end)
 end
 
@@ -713,3 +710,34 @@ btnHide:SetScript("OnClick", function()
       gui_hidden = false
     end
 end)
+
+
+-- ############
+-- # TESTDATA #
+-- ############
+
+-- for idx=1,config.subs do
+--   AddData(data[idx].dmg, "Chucknorris", "Auto Hit", 50)
+--   AddData(data[idx].dmg, "Stevenseagul", "Auto Hit", 10)
+--   AddData(data[idx].dmg, "Jackiechan", "Auto Hit", 30)
+--   AddData(data[idx].dmg, "Vandamme", "Auto Hit", 20)
+--   AddData(data[idx].dmg, "Santa", "Auto Hit", 20)
+--   AddData(data[idx].dmg, "Brucelee", "Auto Hit", 40)
+--   UpdateBars(window.sub[idx].dmg.bars, data[idx].dmg)
+
+--   AddData(data[idx].eheal, "Chucknorris", "Auto Hit", 50)
+--   AddData(data[idx].eheal, "Stevenseagul", "Auto Hit", 10)
+--   AddData(data[idx].eheal, "Jackiechan", "Auto Hit", 30)
+--   AddData(data[idx].eheal, "Vandamme", "Auto Hit", 20)
+--   AddData(data[idx].eheal, "Santa", "Auto Hit", 20)
+--   AddData(data[idx].eheal, "Brucelee", "Auto Hit", 40)
+--   UpdateBars(window.sub[idx].eheal.bars, data[idx].eheal)
+
+--   AddData(data[idx].oheal, "Chucknorris", "Auto Hit", 50)
+--   AddData(data[idx].oheal, "Stevenseagul", "Auto Hit", 10)
+--   AddData(data[idx].oheal, "Jackiechan", "Auto Hit", 30)
+--   AddData(data[idx].oheal, "Vandamme", "Auto Hit", 20)
+--   AddData(data[idx].oheal, "Santa", "Auto Hit", 20)
+--   AddData(data[idx].oheal, "Brucelee", "Auto Hit", 40)
+--   UpdateBars(window.sub[idx].oheal.bars, data[idx].oheal)
+-- end

@@ -14,7 +14,7 @@
 
 -- KikiMeter broadcasting ID: km_id x is only able to communicate with km_id x,
 -- so it won't cause problems if people use older versions that are incompatible
-local km_id = '1' -- corresponds to addon version (1.1 -> 1.2: no change in messages sent; 1.2 -> 2.0: change in messages sent = not compatible)
+local km_id = '2' -- corresponds to addon version (1.1 -> 1.2: no change in messages sent; 1.2 -> 2.0: change in messages sent = not compatible)
 
 local gui_hidden = false -- hides the window
 
@@ -241,6 +241,9 @@ local pHEALEDCRITSELFSELF = MakeGfindReady(HEALEDCRITSELFSELF) -- Your %s critic
 local pHEALEDSELFSELF = MakeGfindReady(HEALEDSELFSELF) -- Your %s heals you for %d.
 local pPERIODICAURAHEALSELFSELF = MakeGfindReady(PERIODICAURAHEALSELFSELF) -- You gain %d health from %s.
 
+-- ####### HEAL SOURCE:OTHER TARGET:ME (for escaping PERIODICAURAHEALSELFSELF)
+local pPERIODICAURAHEALOTHERSELF = MakeGfindReady(PERIODICAURAHEALOTHERSELF) -- You gain %d health from %s's %s.
+
 -- ####### HEAL SOURCE:ME TARGET:OTHER
 local pHEALEDCRITSELFOTHER = MakeGfindReady(HEALEDCRITSELFOTHER) -- Your %s critically heals %s for %d.
 local pHEALEDSELFOTHER = MakeGfindReady(HEALEDSELFOTHER) -- Your %s heals %s for %d.
@@ -262,6 +265,13 @@ parser:SetScript("OnEvent", function()
     local attack = "Auto Hit"
 
     if arg1 then
+
+      -- ####### HEAL SOURCE:OTHER TARGET:ME (for escaping PERIODICAURAHEALSELFSELF)
+      -- You gain %d health from %s's %s.
+      for value, source, attack in string.gfind(arg1, pPERIODICAURAHEALOTHERSELF) do
+        return
+      end
+
       -- ####### DAMAGE SOURCE:ME TARGET:OTHER
       -- Your %s hits %s for %d %s damage.
       for attack, target, value, school in string.gfind(arg1, pSPELLLOGSCHOOLSELFOTHER) do

@@ -263,6 +263,13 @@ parser:SetScript("OnEvent", function()
 
     if arg1 then
 
+      -- advancedvanillacombatlog compatibility: this addon turns
+      -- "You" and "Your" into "player_name" and "player_name 's"
+      arg1 = string.gsub(arg1, target.." 's", "Your")
+      arg1 = string.gsub(arg1, target.." hits", "You hit")
+      arg1 = string.gsub(arg1, target.." crits", "You crit")
+      arg1 = string.gsub(arg1, target.." gains", "You gain")
+
       -- ####### HEAL SOURCE:OTHER TARGET:ME (for escaping PERIODICAURAHEALSELFSELF)
       -- You gain %d health from %s's %s.
       for value, source, attack in string.gfind(arg1, pPERIODICAURAHEALOTHERSELF) do

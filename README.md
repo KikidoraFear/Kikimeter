@@ -2,6 +2,9 @@
 ## ToDo
 - add buttons on top to reset/pause every table with one click
 - always show self if not in shown bars (either on top or bottom with placement)
+- Use SendAddonMessage for data chunks to imrpove performance
+- use ##SavedVariablesPerCharacter data to store table between sessions
+
 
 ## State
 - accuracy of values displayed need further testing

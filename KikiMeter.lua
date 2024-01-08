@@ -27,7 +27,8 @@ local config = {
   font_size = 8, -- font size for name and damage numbers
   btn_size = 10, -- size of buttons
   subs = 3, -- number of separate damage meters
-  window_text_height = 10
+  window_text_height = 10,
+  refresh_time = 1 -- refresh time in seconds (for updating Bars)
 }
 config.sub_height = config.bar_height*config.bars_show -- height of one table
 
@@ -657,9 +658,6 @@ local function AddData(sub_type_data, player_name, attack, value)
   if sub_type_data._players[player_name]._sum > sub_type_data._max then
     sub_type_data._max = sub_type_data._players[player_name]._sum -- update max value
   end
-
-  sub_type_data._ranking = GetRank(sub_type_data._players) -- update rankings
-  sub_type_data._players[player_name]._ranking = GetRankAttack(sub_type_data._players[player_name]._attacks)
 end
 
 window:RegisterEvent("CHAT_MSG_ADDON")
@@ -677,21 +675,18 @@ window:SetScript("OnEvent", function()
       for idx=1,config.subs do
         if not data[idx]._paused then
           AddData(data[idx].dmg, arg4, attack, arg2)
-          UpdateBars(window.sub[idx].dmg.bars, data[idx].dmg)
         end
       end
     elseif kind == "EHEAL" then
       for idx=1,config.subs do
         if not data[idx]._paused then
           AddData(data[idx].eheal, arg4, attack, arg2)
-          UpdateBars(window.sub[idx].eheal.bars, data[idx].eheal)
         end
       end
     elseif kind == "OHEAL" then
       for idx=1,config.subs do
         if not data[idx]._paused then
           AddData(data[idx].oheal, arg4, attack, arg2)
-          UpdateBars(window.sub[idx].oheal.bars, data[idx].oheal)
         end
       end
     end
@@ -716,6 +711,49 @@ btnHide:SetScript("OnClick", function()
       window:Show()
       gui_hidden = false
     end
+end)
+
+-- ################
+-- # REFRESH BARS #
+-- ################
+
+-- for better performance, call UpdateBars only each config.refresh_time seconds
+-- and calculate only one table (dmg, eheal or oheal) at a time
+window:SetScript("OnUpdate", function()
+  if not window.clock then window.clock = GetTime() end
+  if not window.cycle then window.cycle = 0 end
+  if GetTime() >= window.clock + config.refresh_time then
+
+    for idx=1,config.subs do
+      if not data[idx]._paused then
+
+        if (window.cycle == 0 and next(data[idx].dmg._players) ~= nil) then
+          UpdateBars(window.sub[idx].dmg.bars, data[idx].dmg)
+          data[idx].dmg._ranking = GetRank(data[idx].dmg._players) -- update rankings
+          for _, player_name in pairs(data[idx].dmg._ranking) do
+            data[idx].dmg._players[player_name]._ranking = GetRankAttack(data[idx].dmg._players[player_name]._attacks)
+          end
+
+        elseif (window.cycle == 1 and next(data[idx].eheal._players) ~= nil) then
+          UpdateBars(window.sub[idx].eheal.bars, data[idx].eheal)
+          data[idx].eheal._ranking = GetRank(data[idx].eheal._players) -- update rankings
+          for _, player_name in pairs(data[idx].eheal._ranking) do
+            data[idx].eheal._players[player_name]._ranking = GetRankAttack(data[idx].eheal._players[player_name]._attacks)
+          end
+
+        elseif (window.cycle == 2 and next(data[idx].oheal._players) ~= nil) then
+          UpdateBars(window.sub[idx].oheal.bars, data[idx].oheal)
+          data[idx].oheal._ranking = GetRank(data[idx].oheal._players) -- update rankings
+          for _, player_name in pairs(data[idx].oheal._ranking) do
+            data[idx].oheal._players[player_name]._ranking = GetRankAttack(data[idx].oheal._players[player_name]._attacks)
+          end
+        end
+      end
+    end
+
+    window.clock = GetTime()
+    window.cycle = math.mod(window.cycle + 1, 3)
+  end
 end)
 
 

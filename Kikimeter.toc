@@ -4,4 +4,4 @@
 ## Notes: damage/heal meter that broadcasts user's damage/heal to other clients for accurate tracking
 ## Version: 2.4
 
-KikiMeter.lua
+Kikimeter.lua

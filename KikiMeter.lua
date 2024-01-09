@@ -1,5 +1,8 @@
 
 -- for debugging: DEFAULT_CHAT_FRAME:AddMessage("Test")
+local function print(msg)
+  DEFAULT_CHAT_FRAME:AddMessage(msg)
+end
 
 -- combat log limitations:
   -- if the target is full hp, hots (tested with Renew) aren't displayed -> in that case overheal cannot be detected
@@ -133,11 +136,9 @@ end
 
 -- update bars and text with new values and show them
 local function UpdateBars(bars, sub_type_data)
-
   for idx=1, config.bars_show do
     local idx_f = idx -- for SetScript, otherwise last from loop idx is used
     local rank = idx+sub_type_data._scroll -- idx=1, scroll=1 -> rank on top = 2
-
     if sub_type_data._ranking[rank] then
       local player_name = sub_type_data._ranking[rank]
       local value = sub_type_data._players[player_name]._sum
@@ -527,14 +528,6 @@ local function SubTypeLayout(parent, sub_type, sub_type_data, pos_h, col)
   sub_type:SetWidth(config.width)
   sub_type:SetHeight(config.sub_height)
   sub_type:EnableMouseWheel(true)
-  sub_type:SetScript("OnMouseWheel", function()
-    if getArLength(sub_type_data._ranking) > 0 then
-      -- scrolling from 0 to player_num - 1, so that at least 1 player is always shown
-      local max_scroll = getArLength(sub_type_data._ranking) - 1
-      sub_type_data._scroll = math.max(math.min(sub_type_data._scroll-arg1, max_scroll),0)
-      UpdateBars(sub_type.bars, sub_type_data)
-    end
-  end)
 end
 
 local function ButtonLayout(parent, btn, tooltip_txt, pos_btn, pos_parent, pos_v)
@@ -566,12 +559,36 @@ for idx=1,config.subs do
 
   window.sub[idx_f].dmg = CreateFrame("Frame", nil, window.sub[idx_f])
   SubTypeLayout(window.sub[idx_f], window.sub[idx_f].dmg, data[idx_f].dmg, 0, 1)
+  window.sub[idx_f].dmg:SetScript("OnMouseWheel", function()
+    if getArLength(data[idx_f].dmg._ranking) > 0 then
+      -- scrolling from 0 to player_num - 1, so that at least 1 player is always shown
+      local max_scroll = getArLength(data[idx_f].dmg._ranking) - 1
+      data[idx_f].dmg._scroll = math.max(math.min(data[idx_f].dmg._scroll-arg1, max_scroll),0)
+      UpdateBars(window.sub[idx_f].dmg.bars, data[idx_f].dmg)
+    end
+  end)
 
   window.sub[idx_f].eheal = CreateFrame("Frame", nil, window.sub[idx_f])
   SubTypeLayout(window.sub[idx_f], window.sub[idx_f].eheal, data[idx_f].eheal, config.width + config.spacing, 2)
+  window.sub[idx_f].eheal:SetScript("OnMouseWheel", function()
+    if getArLength(data[idx_f].eheal._ranking) > 0 then
+      -- scrolling from 0 to player_num - 1, so that at least 1 player is always shown
+      local max_scroll = getArLength(data[idx_f].eheal._ranking) - 1
+      data[idx_f].eheal._scroll = math.max(math.min(data[idx_f].eheal._scroll-arg1, max_scroll),0)
+      UpdateBars(window.sub[idx_f].eheal.bars, data[idx_f].eheal)
+    end
+  end)
 
   window.sub[idx_f].oheal = CreateFrame("Frame", nil, window.sub[idx_f])
   SubTypeLayout(window.sub[idx_f], window.sub[idx_f].oheal, data[idx_f].oheal, 2*config.width + 2*config.spacing, 3)
+  window.sub[idx_f].oheal:SetScript("OnMouseWheel", function()
+    if getArLength(data[idx_f].oheal._ranking) > 0 then
+      -- scrolling from 0 to player_num - 1, so that at least 1 player is always shown
+      local max_scroll = getArLength(data[idx_f].oheal._ranking) - 1
+      data[idx_f].oheal._scroll = math.max(math.min(data[idx_f].oheal._scroll-arg1, max_scroll),0)
+      UpdateBars(window.sub[idx_f].oheal.bars, data[idx_f].oheal)
+    end
+  end)
 
   window.sub[idx_f].btnReset = CreateFrame("Button", nil, window.sub[idx_f])
   ButtonLayout(window.sub[idx_f], window.sub[idx_f].btnReset, "Reset", "TOPRIGHT", "TOPLEFT", 0)
@@ -727,26 +744,26 @@ window:SetScript("OnUpdate", function()
     for idx=1,config.subs do
       if not data[idx]._paused then
 
-        if (window.cycle == 0 and next(data[idx].dmg._players) ~= nil) then
-          UpdateBars(window.sub[idx].dmg.bars, data[idx].dmg)
+        if window.cycle == 0 then
           data[idx].dmg._ranking = GetRank(data[idx].dmg._players) -- update rankings
           for _, player_name in pairs(data[idx].dmg._ranking) do
             data[idx].dmg._players[player_name]._ranking = GetRankAttack(data[idx].dmg._players[player_name]._attacks)
           end
-
-        elseif (window.cycle == 1 and next(data[idx].eheal._players) ~= nil) then
-          UpdateBars(window.sub[idx].eheal.bars, data[idx].eheal)
+          UpdateBars(window.sub[idx].dmg.bars, data[idx].dmg)
+          
+        elseif window.cycle == 1 then
           data[idx].eheal._ranking = GetRank(data[idx].eheal._players) -- update rankings
           for _, player_name in pairs(data[idx].eheal._ranking) do
             data[idx].eheal._players[player_name]._ranking = GetRankAttack(data[idx].eheal._players[player_name]._attacks)
           end
-
-        elseif (window.cycle == 2 and next(data[idx].oheal._players) ~= nil) then
-          UpdateBars(window.sub[idx].oheal.bars, data[idx].oheal)
+          UpdateBars(window.sub[idx].eheal.bars, data[idx].eheal)
+          
+        elseif window.cycle == 2 then
           data[idx].oheal._ranking = GetRank(data[idx].oheal._players) -- update rankings
           for _, player_name in pairs(data[idx].oheal._ranking) do
             data[idx].oheal._players[player_name]._ranking = GetRankAttack(data[idx].oheal._players[player_name]._attacks)
           end
+          UpdateBars(window.sub[idx].oheal.bars, data[idx].oheal)
         end
       end
     end
@@ -761,28 +778,36 @@ end)
 -- # TESTDATA #
 -- ############
 
--- for idx=1,config.subs do
---   AddData(data[idx].dmg, "Chucknorris", "Auto Hit", 50)
---   AddData(data[idx].dmg, "Stevenseagul", "Auto Hit", 10)
---   AddData(data[idx].dmg, "Jackiechan", "Auto Hit", 30)
---   AddData(data[idx].dmg, "Vandamme", "Auto Hit", 20)
---   AddData(data[idx].dmg, "Santa", "Auto Hit", 20)
---   AddData(data[idx].dmg, "Brucelee", "Auto Hit", 40)
---   UpdateBars(window.sub[idx].dmg.bars, data[idx].dmg)
+-- local test_sender = CreateFrame("Frame")
+-- test_sender:SetScript("OnUpdate", function()
+--   if not test_sender.clock then test_sender.clock = GetTime() end
+--   if GetTime() >= test_sender.clock + 0.1 then
+--     BroadcastValue(100, "Poop Attack", nil)
+--     BroadcastValue(50, "Poop Heal", 25)
 
---   AddData(data[idx].eheal, "Chucknorris", "Auto Hit", 50)
---   AddData(data[idx].eheal, "Stevenseagul", "Auto Hit", 10)
---   AddData(data[idx].eheal, "Jackiechan", "Auto Hit", 30)
---   AddData(data[idx].eheal, "Vandamme", "Auto Hit", 20)
---   AddData(data[idx].eheal, "Santa", "Auto Hit", 20)
---   AddData(data[idx].eheal, "Brucelee", "Auto Hit", 40)
---   UpdateBars(window.sub[idx].eheal.bars, data[idx].eheal)
+--     for idx=1,config.subs do
+--       AddData(data[idx].dmg, "Chucknorris", "Auto Hit", 50)
+--       AddData(data[idx].dmg, "Stevenseagul", "Auto Hit", 10)
+--       AddData(data[idx].dmg, "Jackiechan", "Auto Hit", 30)
+--       AddData(data[idx].dmg, "Vandamme", "Auto Hit", 20)
+--       AddData(data[idx].dmg, "Santa", "Auto Hit", 20)
+--       AddData(data[idx].dmg, "Brucelee", "Auto Hit", 40)
+    
+--       AddData(data[idx].eheal, "Chucknorris", "Auto Hit", 50)
+--       AddData(data[idx].eheal, "Stevenseagul", "Auto Hit", 10)
+--       AddData(data[idx].eheal, "Jackiechan", "Auto Hit", 30)
+--       AddData(data[idx].eheal, "Vandamme", "Auto Hit", 20)
+--       AddData(data[idx].eheal, "Santa", "Auto Hit", 20)
+--       AddData(data[idx].eheal, "Brucelee", "Auto Hit", 40)
+    
+--       AddData(data[idx].oheal, "Chucknorris", "Auto Hit", 50)
+--       AddData(data[idx].oheal, "Stevenseagul", "Auto Hit", 10)
+--       AddData(data[idx].oheal, "Jackiechan", "Auto Hit", 30)
+--       AddData(data[idx].oheal, "Vandamme", "Auto Hit", 20)
+--       AddData(data[idx].oheal, "Santa", "Auto Hit", 20)
+--       AddData(data[idx].oheal, "Brucelee", "Auto Hit", 40)
+--     end
 
---   AddData(data[idx].oheal, "Chucknorris", "Auto Hit", 50)
---   AddData(data[idx].oheal, "Stevenseagul", "Auto Hit", 10)
---   AddData(data[idx].oheal, "Jackiechan", "Auto Hit", 30)
---   AddData(data[idx].oheal, "Vandamme", "Auto Hit", 20)
---   AddData(data[idx].oheal, "Santa", "Auto Hit", 20)
---   AddData(data[idx].oheal, "Brucelee", "Auto Hit", 40)
---   UpdateBars(window.sub[idx].oheal.bars, data[idx].oheal)
--- end
+--     test_sender.clock = GetTime()
+--   end
+-- end)

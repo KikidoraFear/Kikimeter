@@ -5,6 +5,7 @@
 - Use SendAddonMessage for data chunks to imrpove performance
 - use ##SavedVariablesPerCharacter data to store table between sessions
 - parse other player's damage/heal if they dont use the addon (highlight names of players who use kikimeter)
+- add button to show all data in the middle of screen (for screenshots)
 
 
 ## State

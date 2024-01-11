@@ -4,7 +4,7 @@
 - always show self if not in shown bars (either on top or bottom with placement)
 - Use SendAddonMessage for data chunks to imrpove performance
 - use ##SavedVariablesPerCharacter data to store table between sessions
-- parse other player's damage/heal if they dont use the addon (highlight names of players who use kikimeter)
+- parse other player's damage/heal if they dont use the addon (highlight names of players who use kikimeter) - send each x seconds that player uses addon and add marker to table data._users[player_name] = true
 - add button to show all data in the middle of screen (for screenshots)
 
 

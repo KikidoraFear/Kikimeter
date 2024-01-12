@@ -4,6 +4,8 @@ local function print(msg)
   DEFAULT_CHAT_FRAME:AddMessage(msg)
 end
 
+-- check parse order (order important!, e.g. PERIODICAURAHEALOTHERSELF has to be parsed first for escaping PERIODICAURAHEALSELFSELF)
+
 -- combat log limitations:
   -- if the target is full hp, hots (tested with Renew) aren't displayed -> in that case overheal cannot be detected
     -- if the target is missing hp however (even if it's just 1), the full renew tick is listed in the combat log and overheal can be detected correctly
@@ -17,7 +19,7 @@ end
 
 -- KikiMeter broadcasting ID: km_id x is only able to communicate with km_id x,
 -- so it won't cause problems if people use older versions that are incompatible
-local km_id = '2' -- corresponds to addon version (1.1 -> 1.2: no change in messages sent; 1.2 -> 2.0: change in messages sent = not compatible)
+local km_id = '3' -- corresponds to addon version (1.1 -> 1.2: no change in messages sent; 1.2 -> 2.0: change in messages sent = not compatible)
 
 local gui_hidden = false -- hides the window
 
@@ -29,7 +31,7 @@ local config = {
   spacing = 1, -- spacing between subs
   font_size = 8, -- font size for name and damage numbers
   btn_size = 10, -- size of buttons
-  subs = 3, -- number of separate damage meters
+  subs = 2, -- number of separate damage meters
   window_text_height = 10,
   refresh_time = 1 -- refresh time in seconds (for updating Bars)
 }
@@ -115,10 +117,10 @@ end
 -- broadcast value to hidden addon channel
 local function BroadcastValue(value, attack, oHeal)
   if oHeal then
-    SendAddonMessage("KM"..km_id.."_EHEAL_"..attack, value , "RAID")
-    SendAddonMessage("KM"..km_id.."_OHEAL_"..attack, oHeal , "RAID")
+    SendAddonMessage("KM"..km_id.."_eheal_"..attack, value , "RAID")
+    SendAddonMessage("KM"..km_id.."_oheal_"..attack, oHeal , "RAID")
   else
-    SendAddonMessage("KM"..km_id.."_DMG_"..attack, value , "RAID")
+    SendAddonMessage("KM"..km_id.."_dmg_"..attack, value , "RAID")
   end
 end
 
@@ -134,6 +136,16 @@ local function EOHeal(value, target)
   return eHeal, oHeal
 end
 
+-- ########
+-- # INIT #
+-- ########
+
+local data = {}
+InitData(data, 1, config.subs) -- init all subs
+local users = {} -- users[player_name] = true ...show who is using Kikimeter
+
+
+
 -- update bars and text with new values and show them
 local function UpdateBars(bars, sub_type_data)
   for idx=1, config.bars_show do
@@ -143,9 +155,14 @@ local function UpdateBars(bars, sub_type_data)
       local player_name = sub_type_data._ranking[rank]
       local value = sub_type_data._players[player_name]._sum
       local num_attacks = getArLength(sub_type_data._players[player_name]._ranking)
-      bars[idx].text_left:SetText(rank.."."..player_name)
+      if users[player_name] then
+        bars[idx].text_left:SetText("|cFFFFDF00"..rank.."."..player_name.."|r") -- |cAARRGGBBtext|r Alpha Red Green Blue
+        bars[idx].text_right:SetText("|cFFFFDF00"..sub_type_data._players[player_name]._sum.."|r")
+      else
+        bars[idx].text_left:SetText(rank.."."..player_name)
+        bars[idx].text_right:SetText(sub_type_data._players[player_name]._sum)
+      end
       bars[idx].text_left:Show()
-      bars[idx].text_right:SetText(sub_type_data._players[player_name]._sum)
       bars[idx].text_right:Show()
       bars[idx]:SetValue(value/sub_type_data._max*100)
       bars[idx]:Show()
@@ -166,12 +183,34 @@ local function UpdateBars(bars, sub_type_data)
 end
 
 
--- ########
--- # INIT #
--- ########
+local function AddData(data, player_name, kind, attack, value) 
+  if kind == "user" then -- register sender as Kikimeter user
+    users[player_name] = true
+  else -- other kinds are "dmg", "eheal", "oheal"
+    for idx=1,config.subs do
+      if not data[idx]._paused then
+        if not data[idx][kind]._players[player_name] then
+          data[idx][kind]._players[player_name] = {}
+          data[idx][kind]._players[player_name]._sum = 0 -- if player doesnt exist, init sum
+          data[idx][kind]._players[player_name]._attacks = {} -- if player doesnt exist, init attacks
+        end
+      
+        if not data[idx][kind]._players[player_name]._attacks[attack] then
+          data[idx][kind]._players[player_name]._attacks[attack] = 0 -- if attack for player doesnt exist, init value
+        end
+      
+        data[idx][kind]._players[player_name]._sum = data[idx][kind]._players[player_name]._sum + tonumber(value)
+        data[idx][kind]._players[player_name]._attacks[attack] = data[idx][kind]._players[player_name]._attacks[attack] + tonumber(value)
+      
+        if data[idx][kind]._players[player_name]._sum > data[idx][kind]._max then
+          data[idx][kind]._max = data[idx][kind]._players[player_name]._sum -- update max value
+        end
+      end
+    end
+  end
+end
 
-local data = {}
-InitData(data, 1, config.subs) -- init all subs
+
 
 
 -- ############################################
@@ -224,37 +263,51 @@ local function MakeGfindReady(template) -- changes global string to fit gfind pa
   return gsub(template, "%%d", "(%%d+)")
 end
 
--- ####### DAMAGE SOURCE:ME TARGET:OTHER
-local pSPELLLOGSCHOOLSELFOTHER = MakeGfindReady(SPELLLOGSCHOOLSELFOTHER) -- Your %s hits %s for %d %s damage.
-local pSPELLLOGCRITSCHOOLSELFOTHER = MakeGfindReady(SPELLLOGCRITSCHOOLSELFOTHER) -- Your %s crits %s for %d %s damage.
-local pSPELLLOGSELFOTHER = MakeGfindReady(SPELLLOGSELFOTHER) -- Your %s hits %s for %d.
-local pSPELLLOGCRITSELFOTHER = MakeGfindReady(SPELLLOGCRITSELFOTHER) -- Your %s crits %s for %d.
-local pPERIODICAURADAMAGESELFOTHER = MakeGfindReady(PERIODICAURADAMAGESELFOTHER) -- %s suffers %d %s damage from your %s.
-local pCOMBATHITSELFOTHER = MakeGfindReady(COMBATHITSELFOTHER) -- You hit %s for %d.
-local pCOMBATHITCRITSELFOTHER = MakeGfindReady(COMBATHITCRITSELFOTHER) -- You crit %s for %d.
-local pCOMBATHITSCHOOLSELFOTHER = MakeGfindReady(COMBATHITSCHOOLSELFOTHER) -- You hit %s for %d %s damage.
-local pCOMBATHITCRITSCHOOLSELFOTHER = MakeGfindReady(COMBATHITCRITSCHOOLSELFOTHER) -- You crit %s for %d %s damage.
-
+local pcl = {}
 -- ####### HEAL SOURCE:ME TARGET:ME
-local pHEALEDCRITSELFSELF = MakeGfindReady(HEALEDCRITSELFSELF) -- Your %s critically heals you for %d.
-local pHEALEDSELFSELF = MakeGfindReady(HEALEDSELFSELF) -- Your %s heals you for %d.
-local pPERIODICAURAHEALSELFSELF = MakeGfindReady(PERIODICAURAHEALSELFSELF) -- You gain %d health from %s.
+pcl.pHEALEDCRITSELFSELF = MakeGfindReady(HEALEDCRITSELFSELF) -- Your %s critically heals you for %d.
+pcl.pHEALEDSELFSELF = MakeGfindReady(HEALEDSELFSELF) -- Your %s heals you for %d.
+pcl.pPERIODICAURAHEALSELFSELF = MakeGfindReady(PERIODICAURAHEALSELFSELF) -- You gain %d health from %s.
 
 -- ####### HEAL SOURCE:OTHER TARGET:ME (for escaping PERIODICAURAHEALSELFSELF)
-local pPERIODICAURAHEALOTHERSELF = MakeGfindReady(PERIODICAURAHEALOTHERSELF) -- You gain %d health from %s's %s.
+pcl.pHEALEDCRITOTHERSELF = MakeGfindReady(HEALEDCRITOTHERSELF) -- %s's %s critically heals you for %d.
+pcl.pHEALEDOTHERSELF = MakeGfindReady(HEALEDOTHERSELF) -- %s's %s heals you for %d.
+pcl.pPERIODICAURAHEALOTHERSELF = MakeGfindReady(PERIODICAURAHEALOTHERSELF) -- You gain %d health from %s's %s.
 
 -- ####### HEAL SOURCE:ME TARGET:OTHER
-local pHEALEDCRITSELFOTHER = MakeGfindReady(HEALEDCRITSELFOTHER) -- Your %s critically heals %s for %d.
-local pHEALEDSELFOTHER = MakeGfindReady(HEALEDSELFOTHER) -- Your %s heals %s for %d.
-local pPERIODICAURAHEALSELFOTHER = MakeGfindReady(PERIODICAURAHEALSELFOTHER) -- %s gains %d health from your %s.
+pcl.pHEALEDCRITSELFOTHER = MakeGfindReady(HEALEDCRITSELFOTHER) -- Your %s critically heals %s for %d.
+pcl.pHEALEDSELFOTHER = MakeGfindReady(HEALEDSELFOTHER) -- Your %s heals %s for %d.
+pcl.pPERIODICAURAHEALSELFOTHER = MakeGfindReady(PERIODICAURAHEALSELFOTHER) -- %s gains %d health from your %s.
 
--- ####### DAMAGE SOURCE:PET TARGET:OTHER
-local pSPELLLOGSCHOOLOTHEROTHER = MakeGfindReady(SPELLLOGSCHOOLOTHEROTHER) -- %s's %s hits %s for %d %s damage.
-local pSPELLLOGCRITSCHOOLOTHEROTHER = MakeGfindReady(SPELLLOGCRITSCHOOLOTHEROTHER)  -- %s's %s crits %s for %d %s damage.
-local pSPELLLOGOTHEROTHER = MakeGfindReady(SPELLLOGOTHEROTHER) -- %s's %s hits %s for %d.
-local pSPELLLOGCRITOTHEROTHER = MakeGfindReady(SPELLLOGCRITOTHEROTHER) -- %s's %s crits %s for %d.
-local pPERIODICAURADAMAGEOTHEROTHER = MakeGfindReady(PERIODICAURADAMAGEOTHEROTHER) -- "%s suffers %d %s damage from %s's %s."
-local pCOMBATHITOTHEROTHER = MakeGfindReady(COMBATHITOTHEROTHER) -- %s hits %s for %d.
+-- ####### HEAL SOURCE:OTHER TARGET:OTHER
+pcl.pHEALEDCRITOTHEROTHER = MakeGfindReady(HEALEDCRITOTHEROTHER) -- %s's %s critically heals %s for %d.
+pcl.pHEALEDOTHEROTHER = MakeGfindReady(HEALEDOTHEROTHER) -- %s's %s heals %s for %d.
+pcl.pPERIODICAURAHEALOTHEROTHER = MakeGfindReady(PERIODICAURAHEALOTHEROTHER) -- %s gains %d health from %s's %s.
+
+-- ####### DAMAGE SOURCE:ME TARGET:OTHER
+pcl.pSPELLLOGSCHOOLSELFOTHER = MakeGfindReady(SPELLLOGSCHOOLSELFOTHER) -- Your %s hits %s for %d %s damage.
+pcl.pSPELLLOGCRITSCHOOLSELFOTHER = MakeGfindReady(SPELLLOGCRITSCHOOLSELFOTHER) -- Your %s crits %s for %d %s damage.
+pcl.pSPELLLOGSELFOTHER = MakeGfindReady(SPELLLOGSELFOTHER) -- Your %s hits %s for %d.
+pcl.pSPELLLOGCRITSELFOTHER = MakeGfindReady(SPELLLOGCRITSELFOTHER) -- Your %s crits %s for %d.
+pcl.pPERIODICAURADAMAGESELFOTHER = MakeGfindReady(PERIODICAURADAMAGESELFOTHER) -- %s suffers %d %s damage from your %s.
+pcl.pCOMBATHITSELFOTHER = MakeGfindReady(COMBATHITSELFOTHER) -- You hit %s for %d.
+pcl.pCOMBATHITCRITSELFOTHER = MakeGfindReady(COMBATHITCRITSELFOTHER) -- You crit %s for %d.
+pcl.pCOMBATHITSCHOOLSELFOTHER = MakeGfindReady(COMBATHITSCHOOLSELFOTHER) -- You hit %s for %d %s damage.
+pcl.pCOMBATHITCRITSCHOOLSELFOTHER = MakeGfindReady(COMBATHITCRITSCHOOLSELFOTHER) -- You crit %s for %d %s damage.
+pcl.pDAMAGESHIELDSELFOTHER = MakeGfindReady(DAMAGESHIELDSELFOTHER) -- You reflect %d %s damage to %s.
+
+-- ####### DAMAGE SOURCE:OTHER TARGET:OTHER
+pcl.pSPELLLOGSCHOOLOTHEROTHER = MakeGfindReady(SPELLLOGSCHOOLOTHEROTHER) -- %s's %s hits %s for %d %s damage.
+pcl.pSPELLLOGCRITSCHOOLOTHEROTHER = MakeGfindReady(SPELLLOGCRITSCHOOLOTHEROTHER)  -- %s's %s crits %s for %d %s damage.
+pcl.pSPELLLOGOTHEROTHER = MakeGfindReady(SPELLLOGOTHEROTHER) -- %s's %s hits %s for %d.
+pcl.pSPELLLOGCRITOTHEROTHER = MakeGfindReady(SPELLLOGCRITOTHEROTHER) -- %s's %s crits %s for %d.
+pcl.pPERIODICAURADAMAGEOTHEROTHER = MakeGfindReady(PERIODICAURADAMAGEOTHEROTHER) -- "%s suffers %d %s damage from %s's %s."
+pcl.pCOMBATHITOTHEROTHER = MakeGfindReady(COMBATHITOTHEROTHER) -- %s hits %s for %d.
+pcl.pCOMBATHITCRITOTHEROTHER = MakeGfindReady(COMBATHITCRITOTHEROTHER) -- %s crits %s for %d.
+pcl.pCOMBATHITSCHOOLOTHEROTHER = MakeGfindReady(COMBATHITSCHOOLOTHEROTHER) -- %s hits %s for %d %s damage.
+pcl.pCOMBATHITCRITSCHOOLOTHEROTHER = MakeGfindReady(COMBATHITCRITSCHOOLOTHEROTHER) -- %s crits %s for %d %s damage.
+pcl.pDAMAGESHIELDOTHEROTHER = MakeGfindReady(DAMAGESHIELDOTHEROTHER) -- %s reflects %d %s damage to %s.
+
 
 
 parser:SetScript("OnEvent", function()
@@ -272,84 +325,58 @@ parser:SetScript("OnEvent", function()
       arg1 = string.gsub(arg1, target.." crits", "You crit")
       arg1 = string.gsub(arg1, target.." gains", "You gain")
 
-      -- ####### HEAL SOURCE:OTHER TARGET:ME (for escaping PERIODICAURAHEALSELFSELF)
-      -- You gain %d health from %s's %s.
-      for value, source, attack in string.gfind(arg1, pPERIODICAURAHEALOTHERSELF) do
+    -- #################
+    -- # PARSE HEALING #
+    -- #################
+
+      -- ####### HEAL SOURCE:OTHER TARGET:ME
+      -- %s's %s critically heals you for %d.
+      for source, attack, value in string.gfind(arg1, pcl.pHEALEDCRITOTHERSELF) do
+        if not users[source] then -- if player does not use Kikimeter, add values from own combat log to data
+          local eHeal, oHeal = EOHeal(value, target)
+          AddData(data, source, "eheal", attack, eHeal)
+          AddData(data, source, "oheal", attack, oHeal) 
+        end
         return
       end
 
-      -- ####### DAMAGE SOURCE:ME TARGET:OTHER
-      -- Your %s hits %s for %d %s damage.
-      for attack, target, value, school in string.gfind(arg1, pSPELLLOGSCHOOLSELFOTHER) do
-        BroadcastValue(value, attack, nil)
+      -- %s's %s heals you for %d.
+      for source, attack, value in string.gfind(arg1, pcl.pHEALEDOTHERSELF) do
+        if not users[source] then -- if player does not use Kikimeter, add values from own combat log to data
+          local eHeal, oHeal = EOHeal(value, target)
+          AddData(data, source, "eheal", attack, eHeal)
+          AddData(data, source, "oheal", attack, oHeal) 
+        end
         return
       end
 
-       -- Your %s crits %s for %d %s damage.
-      for attack, target, value, school in string.gfind(arg1, pSPELLLOGCRITSCHOOLSELFOTHER) do
-        BroadcastValue(value, attack, nil)
-        return
-      end
-
-       -- Your %s hits %s for %d.
-      for attack, target, value in string.gfind(arg1, pSPELLLOGSELFOTHER) do
-        BroadcastValue(value, attack, nil)
-        return
-      end
-
-       -- Your %s crits %s for %d.
-      for attack, target, value in string.gfind(arg1, pSPELLLOGCRITSELFOTHER) do
-        BroadcastValue(value, attack, nil)
-        return
-      end
-
-      -- %s suffers %d %s damage from your %s.
-      for target, value, school, attack in string.gfind(arg1, pPERIODICAURADAMAGESELFOTHER) do
-        BroadcastValue(value, attack, nil)
-        return
-      end
-
-      -- You hit %s for %d.
-      for target, value in string.gfind(arg1, pCOMBATHITSELFOTHER) do
-        BroadcastValue(value, attack, nil)
-        return
-      end
-
-      -- You crit %s for %d.
-      for target, value in string.gfind(arg1, pCOMBATHITCRITSELFOTHER) do
-        BroadcastValue(value, attack, nil)
-        return
-      end
-
-      -- You hit %s for %d %s damage.
-      for target, value, school in string.gfind(arg1, pCOMBATHITSCHOOLSELFOTHER) do
-        BroadcastValue(value, attack, nil)
-        return
-      end
-
-      -- You crit %s for %d %s damage.
-      for target, value, school in string.gfind(arg1, pCOMBATHITCRITSCHOOLSELFOTHER) do
-        BroadcastValue(value, attack, nil)
+      -- You gain %d health from %s's %s. (has to be before "You gain %d health from %s.")
+      for value, source, attack in string.gfind(arg1, pcl.pPERIODICAURAHEALOTHERSELF) do
+        if not users[source] then -- if player does not use Kikimeter, add values from own combat log to data
+          local eHeal, oHeal = EOHeal(value, target)
+          AddData(data, source, "eheal", attack, eHeal)
+          AddData(data, source, "oheal", attack, oHeal) 
+        end
         return
       end
 
       -- ####### HEAL SOURCE:ME TARGET:ME
       -- Your %s critically heals you for %d.
-      for attack, value in string.gfind(arg1, pHEALEDCRITSELFSELF) do
+      for attack, value in string.gfind(arg1, pcl.pHEALEDCRITSELFSELF) do
         local eHeal, oHeal = EOHeal(value, target)
         BroadcastValue(eHeal, attack, oHeal)
         return
       end
 
       -- Your %s heals you for %d.
-      for attack, value in string.gfind(arg1, pHEALEDSELFSELF) do
+      for attack, value in string.gfind(arg1, pcl.pHEALEDSELFSELF) do
         local eHeal, oHeal = EOHeal(value, target)
         BroadcastValue(eHeal, attack, oHeal)
         return
       end
 
       -- You gain %d health from %s.
-      for value, attack in string.gfind(arg1, pPERIODICAURAHEALSELFSELF) do
+      for value, attack in string.gfind(arg1, pcl.pPERIODICAURAHEALSELFSELF) do
         local eHeal, oHeal = EOHeal(value, target)
         BroadcastValue(eHeal, attack, oHeal)
         return
@@ -357,76 +384,224 @@ parser:SetScript("OnEvent", function()
 
       -- ####### HEAL SOURCE:ME TARGET:OTHER
       -- Your %s critically heals %s for %d.
-      for attack, target, value in string.gfind(arg1, pHEALEDCRITSELFOTHER) do
+      for attack, target, value in string.gfind(arg1, pcl.pHEALEDCRITSELFOTHER) do
         local eHeal, oHeal = EOHeal(value, target)
         BroadcastValue(eHeal, attack, oHeal)
         return
       end
 
       -- Your %s heals %s for %d.
-      for attack, target, value in string.gfind(arg1, pHEALEDSELFOTHER) do
+      for attack, target, value in string.gfind(arg1, pcl.pHEALEDSELFOTHER) do
         local eHeal, oHeal = EOHeal(value, target)
         BroadcastValue(eHeal, attack, oHeal)
         return
       end
 
       -- %s gains %d health from your %s.
-      for target, value, attack in string.gfind(arg1, pPERIODICAURAHEALSELFOTHER) do
+      for target, value, attack in string.gfind(arg1, pcl.pPERIODICAURAHEALSELFOTHER) do
         local eHeal, oHeal = EOHeal(value, target)
         BroadcastValue(eHeal, attack, oHeal)
         return
-      end
+      end 
 
-      -- ####### DAMAGE SOURCE:PET TARGET:OTHER
-      local pet_name = UnitName("pet") -- pet_name has to be checked each event (could be renamed/resummoned)
-      -- other
-       -- %s's %s hits %s for %d %s damage.
-       for source, attack, target, value, school in string.gfind(arg1, pSPELLLOGSCHOOLOTHEROTHER) do
-        if source == pet_name then
-          BroadcastValue(value, "Pet: "..attack, nil)
+      -- ####### HEAL SOURCE:OTHER TARGET:OTHER
+      -- %s's %s critically heals %s for %d.
+      for source, attack, target, value in string.gfind(arg1, pcl.pHEALEDCRITOTHEROTHER) do
+        if not users[source] then -- if player does not use Kikimeter, add values from own combat log to data
+          local eHeal, oHeal = EOHeal(value, target)
+          AddData(data, source, "eheal", attack, eHeal)
+          AddData(data, source, "oheal", attack, oHeal) 
         end
         return
       end
 
-       -- %s's %s crits %s for %d %s damage.
-      for source, attack, target, value, school in string.gfind(arg1, pSPELLLOGCRITSCHOOLOTHEROTHER) do
+      -- %s's %s heals %s for %d.
+      for source, attack, target, value in string.gfind(arg1, pcl.pHEALEDOTHEROTHER) do
+        if not users[source] then -- if player does not use Kikimeter, add values from own combat log to data
+          local eHeal, oHeal = EOHeal(value, target)
+          AddData(data, source, "eheal", attack, eHeal)
+          AddData(data, source, "oheal", attack, oHeal) 
+        end
+        return
+      end
+
+      -- %s gains %d health from %s's %s.
+      for target, value, source, attack in string.gfind(arg1, pcl.pPERIODICAURAHEALOTHEROTHER) do
+        if not users[source] then -- if player does not use Kikimeter, add values from own combat log to data
+          local eHeal, oHeal = EOHeal(value, target)
+          AddData(data, source, "eheal", attack, eHeal)
+          AddData(data, source, "oheal", attack, oHeal) 
+        end
+        return
+      end
+
+
+      -- ################
+      -- # PARSE DAMAGE #
+      -- ################
+
+      -- ####### DAMAGE SOURCE:ME TARGET:OTHER
+      -- Your %s hits %s for %d %s damage.
+      for attack, target, value, school in string.gfind(arg1, pcl.pSPELLLOGSCHOOLSELFOTHER) do
+        BroadcastValue(value, attack, nil)
+        return
+      end
+
+       -- Your %s crits %s for %d %s damage.
+      for attack, target, value, school in string.gfind(arg1, pcl.pSPELLLOGCRITSCHOOLSELFOTHER) do
+        BroadcastValue(value, attack, nil)
+        return
+      end
+
+       -- Your %s hits %s for %d. (has to be before "%s hits %s for %d.")
+      for attack, target, value in string.gfind(arg1, pcl.pSPELLLOGSELFOTHER) do
+        BroadcastValue(value, attack, nil)
+        return
+      end
+
+       -- Your %s crits %s for %d.
+      for attack, target, value in string.gfind(arg1, pcl.pSPELLLOGCRITSELFOTHER) do
+        BroadcastValue(value, attack, nil)
+        return
+      end
+
+      -- %s suffers %d %s damage from your %s.
+      for target, value, school, attack in string.gfind(arg1, pcl.pPERIODICAURADAMAGESELFOTHER) do
+        BroadcastValue(value, attack, nil)
+        return
+      end
+
+      -- You hit %s for %d.
+      for target, value in string.gfind(arg1, pcl.pCOMBATHITSELFOTHER) do
+        BroadcastValue(value, attack, nil)
+        return
+      end
+
+      -- You crit %s for %d.
+      for target, value in string.gfind(arg1, pcl.pCOMBATHITCRITSELFOTHER) do
+        BroadcastValue(value, attack, nil)
+        return
+      end
+
+      -- You hit %s for %d %s damage.
+      for target, value, school in string.gfind(arg1, pcl.pCOMBATHITSCHOOLSELFOTHER) do
+        BroadcastValue(value, attack, nil)
+        return
+      end
+
+      -- You crit %s for %d %s damage.
+      for target, value, school in string.gfind(arg1, pcl.pCOMBATHITCRITSCHOOLSELFOTHER) do
+        BroadcastValue(value, attack, nil)
+        return
+      end
+
+      -- You reflect %d %s damage to %s.
+      for value, school, target in string.gfind(arg1, pcl.pDAMAGESHIELDSELFOTHER) do
+        BroadcastValue(value, "Reflect", nil)
+        return
+      end
+
+      -- ####### DAMAGE SOURCE:OTHER TARGET:OTHER
+      local pet_name = UnitName("pet") -- pet_name has to be checked each event (could be renamed/resummoned)
+      -- %s's %s hits %s for %d %s damage. (has to be before "%s hits %s for %d %s damage.")
+      for source, attack, target, value, school in string.gfind(arg1, pcl.pSPELLLOGSCHOOLOTHEROTHER) do
         if source == pet_name then
           BroadcastValue(value, "Pet: "..attack, nil)
+        elseif not users[source] then -- if player does not use Kikimeter, add values from own combat log to data
+          AddData(data, source, "dmg", attack, value)
+        end
+        return
+      end
+
+       -- %s's %s crits %s for %d %s damage. (has to be before "%s crits %s for %d %s damage.")
+      for source, attack, target, value, school in string.gfind(arg1, pcl.pSPELLLOGCRITSCHOOLOTHEROTHER) do
+        if source == pet_name then
+          BroadcastValue(value, "Pet: "..attack, nil)
+        elseif not users[source] then -- if player does not use Kikimeter, add values from own combat log to data
+          AddData(data, source, "dmg", attack, value)
         end
         return
       end
 
        -- %s's %s hits %s for %d.
-      for source, attack, target, value in string.gfind(arg1, pSPELLLOGOTHEROTHER) do
+      for source, attack, target, value in string.gfind(arg1, pcl.pSPELLLOGOTHEROTHER) do
         if source == pet_name then
           BroadcastValue(value, "Pet: "..attack, nil)
+        elseif not users[source] then -- if player does not use Kikimeter, add values from own combat log to data
+          AddData(data, source, "dmg", attack, value)
         end
         return
       end
 
-       -- %s's %s crits %s for %d.
-      for source, attack, target, value, school in string.gfind(arg1, pSPELLLOGCRITOTHEROTHER) do
+       -- %s's %s crits %s for %d. (has to be before "%s crits %s for %d.")
+      for source, attack, target, value, school in string.gfind(arg1, pcl.pSPELLLOGCRITOTHEROTHER) do
         if source == pet_name then
           BroadcastValue(value, "Pet: "..attack, nil)
+        elseif not users[source] then -- if player does not use Kikimeter, add values from own combat log to data
+          AddData(data, source, "dmg", attack, value)
         end
         return
       end
 
-      -- "%s suffers %d %s damage from %s's %s."
-      for target, value, school, source, attack in string.gfind(arg1, pPERIODICAURADAMAGEOTHEROTHER) do
+      -- %s suffers %d %s damage from %s's %s.
+      for target, value, school, source, attack in string.gfind(arg1, pcl.pPERIODICAURADAMAGEOTHEROTHER) do
         if source == pet_name then
           BroadcastValue(value, "Pet: "..attack, nil)
+        elseif not users[source] then -- if player does not use Kikimeter, add values from own combat log to data
+          AddData(data, source, "dmg", attack, value)
         end
         return
       end
 
       -- %s hits %s for %d.
-      for source, target, value in string.gfind(arg1, pCOMBATHITOTHEROTHER) do
+      for source, target, value in string.gfind(arg1, pcl.pCOMBATHITOTHEROTHER) do
         if source == pet_name then
           BroadcastValue(value, "Pet: "..attack, nil)
+        elseif not users[source] then -- if player does not use Kikimeter, add values from own combat log to data
+          AddData(data, source, "dmg", attack, value)
         end
         return
       end
+
+      -- %s crits %s for %d.
+      for source, target, value in string.gfind(arg1, pcl.pCOMBATHITCRITOTHEROTHER) do
+        if source == pet_name then
+          BroadcastValue(value, "Pet: "..attack, nil)
+        elseif not users[source] then -- if player does not use Kikimeter, add values from own combat log to data
+          AddData(data, source, "dmg", attack, value)
+        end
+        return
+      end
+
+      -- %s hits %s for %d %s damage.
+      for source, target, school, value in string.gfind(arg1, pcl.pCOMBATHITSCHOOLOTHEROTHER) do
+        if source == pet_name then
+          BroadcastValue(value, "Pet: "..attack, nil)
+        elseif not users[source] then -- if player does not use Kikimeter, add values from own combat log to data
+          AddData(data, source, "dmg", attack, value)
+        end
+        return
+      end
+
+      -- %s crits %s for %d %s damage.
+      for source, target, school, value in string.gfind(arg1, pcl.pCOMBATHITCRITSCHOOLOTHEROTHER) do
+        if source == pet_name then
+          BroadcastValue(value, "Pet: "..attack, nil)
+        elseif not users[source] then -- if player does not use Kikimeter, add values from own combat log to data
+          AddData(data, source, "dmg", attack, value)
+        end
+        return
+      end
+
+      -- %s reflects %d %s damage to %s.
+      for source, value, school, target in string.gfind(arg1, pcl.pDAMAGESHIELDOTHEROTHER) do
+        if source == pet_name then
+          BroadcastValue(value, "Pet: Reflect", nil)
+        elseif not users[source] then -- if player does not use Kikimeter, add values from own combat log to data
+          AddData(data, source, "dmg", "Reflect", value)
+        end
+        return
+      end   
     end
 end)
 
@@ -658,55 +833,18 @@ local function GetRankAttack(sub_type_players_attacks_data)
   return ranking -- ranking is an array ranking[1] = "Kikidora",...
 end
 
-local function AddData(sub_type_data, player_name, attack, value)
-  if not sub_type_data._players[player_name] then
-    sub_type_data._players[player_name] = {}
-    sub_type_data._players[player_name]._sum = 0 -- if player doesnt exist, init sum
-    sub_type_data._players[player_name]._attacks = {} -- if player doesnt exist, init attacks
-  end
-
-  if not sub_type_data._players[player_name]._attacks[attack] then
-    sub_type_data._players[player_name]._attacks[attack] = 0 -- if attack for player doesnt exist, init value
-  end
-
-  sub_type_data._players[player_name]._sum = sub_type_data._players[player_name]._sum + tonumber(value)
-  sub_type_data._players[player_name]._attacks[attack] = sub_type_data._players[player_name]._attacks[attack] + tonumber(value)
-
-  if sub_type_data._players[player_name]._sum > sub_type_data._max then
-    sub_type_data._max = sub_type_data._players[player_name]._sum -- update max value
-  end
-end
-
 window:RegisterEvent("CHAT_MSG_ADDON")
 window:SetScript("OnEvent", function()
-  -- arg1: Prefix (KM_km_id_DMG_attack
-      -- KM_km_id_EHEAL_attack
-      -- KM_km_id_OHEAL_attack)
+  -- arg1: Prefix (KMkm_id_dmg_attack
+      -- KMkm_id_eheal_attack
+      -- KMkm_id_oheal_attack)
   -- arg2: Message (number)
   -- arg3: distribution type (RAID)
   -- arg4: sender (Kikidora)
   local pattern = "KM"..km_id.."_(.+)_".."(.+)"
   
   for kind, attack in string.gfind(arg1, pattern) do
-    if kind == "DMG" then
-      for idx=1,config.subs do
-        if not data[idx]._paused then
-          AddData(data[idx].dmg, arg4, attack, arg2)
-        end
-      end
-    elseif kind == "EHEAL" then
-      for idx=1,config.subs do
-        if not data[idx]._paused then
-          AddData(data[idx].eheal, arg4, attack, arg2)
-        end
-      end
-    elseif kind == "OHEAL" then
-      for idx=1,config.subs do
-        if not data[idx]._paused then
-          AddData(data[idx].oheal, arg4, attack, arg2)
-        end
-      end
-    end
+    AddData(data, arg4, kind, attack, arg2)
   end
 end)
 
@@ -740,7 +878,7 @@ window:SetScript("OnUpdate", function()
   if not window.clock then window.clock = GetTime() end
   if not window.cycle then window.cycle = 0 end
   if GetTime() >= window.clock + config.refresh_time then
-
+    
     for idx=1,config.subs do
       if not data[idx]._paused then
 
@@ -767,9 +905,12 @@ window:SetScript("OnUpdate", function()
         end
       end
     end
+    if window.cycle == 3 then
+      SendAddonMessage("KM"..km_id.."_user_nil", 0, "RAID") -- send who is using Kikimeter (player_name is sender)
+    end
 
     window.clock = GetTime()
-    window.cycle = math.mod(window.cycle + 1, 3)
+    window.cycle = math.mod(window.cycle + 1, 4)
   end
 end)
 

@@ -1,7 +1,7 @@
 ## Interface: 11200
-## Title: KikiMeter
+## Title: Kikimeter
 ## Author: Kikidora
 ## Notes: damage/heal meter that broadcasts user's damage/heal to other clients for accurate tracking
-## Version: 2.4
+## Version: 3.0
 
 Kikimeter.lua

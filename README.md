@@ -2,9 +2,8 @@
 ## ToDo
 - add buttons on top to reset/pause every table with one click
 - always show self if not in shown bars (either on top or bottom with placement)
-- Use SendAddonMessage for data chunks to imrpove performance
+- Use SendAddonMessage for data chunks to improve performance
 - use ##SavedVariablesPerCharacter data to store table between sessions
-- parse other player's damage/heal if they dont use the addon (highlight names of players who use kikimeter) - add marker to table data._users[player_name] = true each time AddData source is chat_msg_addon
 - add button to show all data in the middle of screen (for screenshots)
 
 

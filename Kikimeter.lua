@@ -182,11 +182,10 @@ local function UpdateBars(bars, sub_type_data)
   end
 end
 
-
 local function AddData(data, player_name, kind, attack, value) 
   if kind == "user" then -- register sender as Kikimeter user
     users[player_name] = true
-  else -- other kinds are "dmg", "eheal", "oheal"
+  elseif unitIDs_cache[player_name] then -- other kinds are "dmg", "eheal", "oheal" and player exists
     for idx=1,config.subs do
       if not data[idx]._paused then
         if not data[idx][kind]._players[player_name] then
@@ -209,9 +208,6 @@ local function AddData(data, player_name, kind, attack, value)
     end
   end
 end
-
-
-
 
 -- ############################################
 -- # PARSE COMBAT LOG AND BROADCAST SOURCE:ME #
@@ -907,6 +903,12 @@ window:SetScript("OnUpdate", function()
     end
     if window.cycle == 3 then
       SendAddonMessage("KM"..km_id.."_user_nil", 0, "RAID") -- send who is using Kikimeter (player_name is sender)
+      for _,unitID in pairs(unitIDs) do
+        local name = UnitName(unitID)
+        if name then
+          unitIDs_cache[name] = unitID
+        end
+      end
     end
 
     window.clock = GetTime()

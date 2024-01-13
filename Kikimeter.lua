@@ -27,7 +27,9 @@ local gui_hidden = false -- hides the window
 local config = {
   width = 110, -- width of bars
   bar_height = 12, -- height of bars
-  bars_show = 7, -- number of bars shown in sub
+  bars_show = 5, -- number of bars shown in sub
+  bars_show_max = 20, -- number of bars shown in sub when maximise is pressed
+  bars_show_min = 5, -- number of bars shown in sub when maximise isn't pressed
   spacing = 1, -- spacing between subs
   font_size = 8, -- font size for name and damage numbers
   btn_size = 10, -- size of buttons
@@ -407,6 +409,23 @@ local function TextLayout(parent, text, align, pos_h, pos_v)
   text:Hide()
 end
 
+local function ButtonLayout(parent, btn, tooltip_txt, pos_btn, pos_parent, pos_v)
+  btn:ClearAllPoints()
+  btn:SetPoint(pos_btn, parent, pos_parent, 0, pos_v)
+  btn:SetHeight(config.btn_size)
+  btn:SetWidth(config.btn_size)
+  btn:SetBackdrop({bgFile = 'Interface\\Tooltips\\UI-Tooltip-Background'})
+  btn:SetBackdropColor(1, 1, 1, 1)
+  btn:SetScript("OnEnter", function()
+    GameTooltip:SetOwner(btn, "ANCHOR_RIGHT")
+    GameTooltip:AddLine(tooltip_txt)
+    GameTooltip:Show()
+  end)
+  btn:SetScript("OnLeave", function()
+    GameTooltip:Hide()
+  end)
+end
+
 local function WindowLayout(window)
   window:SetBackdrop({bgFile = 'Interface\\Tooltips\\UI-Tooltip-Background'})
   window:SetBackdropColor(0, 0, 0, 1)
@@ -436,6 +455,13 @@ local function WindowLayout(window)
   TextLayout(window, window.text_right, "BOTTOMRIGHT", 0, 2)
   window.text_right:SetText("over healing")
   window.text_right:Show()
+
+  window.button_max = CreateFrame("Button", nil, window)
+  ButtonLayout(window, window.button_max, "Maximise", "BOTTOMLEFT", "TOPLEFT", 0)
+  window.button_max.text = window:CreateFontString("Status", "OVERLAY", "GameFontNormal")
+  TextLayout(window.button_max, window.button_max.text, "LEFT", 0, 0)
+  window.button_max.text:SetText("M")
+  window.button_max.text:Show()
 end
 
 local function CreateBar(parent, idx, col)
@@ -472,23 +498,6 @@ local function SubTypeLayout(parent, sub_type, sub_type_data, pos_h, col)
   sub_type:SetWidth(config.width)
   sub_type:SetHeight(config.sub_height)
   sub_type:EnableMouseWheel(true)
-end
-
-local function ButtonLayout(parent, btn, tooltip_txt, pos_btn, pos_parent, pos_v)
-  btn:ClearAllPoints()
-  btn:SetPoint(pos_btn, parent, pos_parent, 0, pos_v)
-  btn:SetHeight(config.btn_size)
-  btn:SetWidth(config.btn_size)
-  btn:SetBackdrop({bgFile = 'Interface\\Tooltips\\UI-Tooltip-Background'})
-  btn:SetBackdropColor(1, 1, 1, 1)
-  btn:SetScript("OnEnter", function()
-    GameTooltip:SetOwner(btn, "ANCHOR_RIGHT")
-    GameTooltip:AddLine(tooltip_txt)
-    GameTooltip:Show()
-  end)
-  btn:SetScript("OnLeave", function()
-    GameTooltip:Hide()
-  end)
 end
 
 local window = CreateFrame("Frame", "KikiMeter", UIParent)
@@ -570,7 +579,8 @@ for idx=1,config.subs do
   window.sub[idx].eheal.bars = {}
   window.sub[idx].oheal.bars = {}
 
-  for idx_bar = 1,config.bars_show do
+  -- for idx_bar = 1,config.bars_show do
+  for idx_bar = 1,config.bars_show_max do
     CreateBar(window.sub[idx].dmg, idx_bar, 1)
     CreateBar(window.sub[idx].eheal, idx_bar, 2)
     CreateBar(window.sub[idx].oheal, idx_bar, 3)
@@ -637,6 +647,43 @@ btnHide:SetScript("OnClick", function()
     end
 end)
 
+local max_window = false
+-- maximise window
+window.button_max:SetScript("OnClick", function()
+  if not max_window then
+    config.bars_show = config.bars_show_max
+    max_window = true
+  else
+    config.bars_show = config.bars_show_min
+    max_window = false
+  end
+  config.sub_height = config.bar_height*config.bars_show -- height of one table
+  window:SetHeight(config.sub_height*config.subs + (config.subs-1)*config.spacing + config.window_text_height)
+  for idx=1,config.subs do
+    local idx_f = idx
+    window.sub[idx_f]:SetPoint("TOPLEFT", window, "TOPLEFT", 0, -(idx_f-1)*(config.sub_height+config.spacing))
+    window.sub[idx_f]:SetHeight(config.sub_height)
+    window.sub[idx_f].dmg:SetHeight(config.sub_height)
+    window.sub[idx_f].eheal:SetHeight(config.sub_height)
+    window.sub[idx_f].oheal:SetHeight(config.sub_height)
+    for idx_bars = 1,config.bars_show_max do
+      local idx_ff = idx_bars
+      window.sub[idx_f].dmg.bars[idx_ff].text_left:Hide()
+      window.sub[idx_f].dmg.bars[idx_ff].text_right:Hide()
+      window.sub[idx_f].dmg.bars[idx_ff]:Hide()
+      window.sub[idx_f].eheal.bars[idx_ff].text_left:Hide()
+      window.sub[idx_f].eheal.bars[idx_ff].text_right:Hide()
+      window.sub[idx_f].eheal.bars[idx_ff]:Hide()
+      window.sub[idx_f].oheal.bars[idx_ff].text_left:Hide()
+      window.sub[idx_f].oheal.bars[idx_ff].text_right:Hide()
+      window.sub[idx_f].oheal.bars[idx_ff]:Hide()
+    end
+    UpdateBars(window.sub[idx_f].dmg.bars, data[idx_f].dmg)
+    UpdateBars(window.sub[idx_f].eheal.bars, data[idx_f].eheal)
+    UpdateBars(window.sub[idx_f].oheal.bars, data[idx_f].oheal)
+  end
+end)
+
 -- ################
 -- # REFRESH BARS #
 -- ################
@@ -694,36 +741,22 @@ end)
 -- # TESTDATA #
 -- ############
 
+-- local number_test_players = 10
+
+-- for number_player = 1,number_test_players do
+--   unitIDs_cache["Player"..number_player] = true
+-- end
+
 -- local test_sender = CreateFrame("Frame")
 -- test_sender:SetScript("OnUpdate", function()
 --   if not test_sender.clock then test_sender.clock = GetTime() end
 --   if GetTime() >= test_sender.clock + 0.1 then
---     BroadcastValue(100, "Poop Attack", nil)
---     BroadcastValue(50, "Poop Heal", 25)
 
---     for idx=1,config.subs do
---       AddData(data[idx].dmg, "Chucknorris", "Auto Hit", 50)
---       AddData(data[idx].dmg, "Stevenseagul", "Auto Hit", 10)
---       AddData(data[idx].dmg, "Jackiechan", "Auto Hit", 30)
---       AddData(data[idx].dmg, "Vandamme", "Auto Hit", 20)
---       AddData(data[idx].dmg, "Santa", "Auto Hit", 20)
---       AddData(data[idx].dmg, "Brucelee", "Auto Hit", 40)
-    
---       AddData(data[idx].eheal, "Chucknorris", "Auto Hit", 50)
---       AddData(data[idx].eheal, "Stevenseagul", "Auto Hit", 10)
---       AddData(data[idx].eheal, "Jackiechan", "Auto Hit", 30)
---       AddData(data[idx].eheal, "Vandamme", "Auto Hit", 20)
---       AddData(data[idx].eheal, "Santa", "Auto Hit", 20)
---       AddData(data[idx].eheal, "Brucelee", "Auto Hit", 40)
-    
---       AddData(data[idx].oheal, "Chucknorris", "Auto Hit", 50)
---       AddData(data[idx].oheal, "Stevenseagul", "Auto Hit", 10)
---       AddData(data[idx].oheal, "Jackiechan", "Auto Hit", 30)
---       AddData(data[idx].oheal, "Vandamme", "Auto Hit", 20)
---       AddData(data[idx].oheal, "Santa", "Auto Hit", 20)
---       AddData(data[idx].oheal, "Brucelee", "Auto Hit", 40)
+--     for number_player = 1,number_test_players do
+--       AddData(data, "Player"..number_player, "dmg", "Hit", math.random(number_player))
+--       AddData(data, "Player"..number_player, "eheal", "Heal", math.random(number_player))
+--       AddData(data, "Player"..number_player, "oheal", "Heal", math.random(number_player))
 --     end
-
 --     test_sender.clock = GetTime()
 --   end
 -- end)

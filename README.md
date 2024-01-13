@@ -9,7 +9,7 @@
 
 ## State
 - accuracy of values displayed need further testing
-- max players tested so far: 2
+- max players tested so far: 7
 
 ## Description
 Only works when in a raid or party!  

@@ -27,7 +27,7 @@ local gui_hidden = false -- hides the window
 local config = {
   width = 110, -- width of bars
   bar_height = 12, -- height of bars
-  bars_show = 5, -- number of bars shown in sub
+  bars_show = 7, -- number of bars shown in sub
   spacing = 1, -- spacing between subs
   font_size = 8, -- font size for name and damage numbers
   btn_size = 10, -- size of buttons
@@ -259,345 +259,118 @@ local function MakeGfindReady(template) -- changes global string to fit gfind pa
   return gsub(template, "%%d", "(%%d+)")
 end
 
-local pcl = {}
+
+local combatlog_patterns = {} -- parser for combat log, order = {source, attack, target, value, school}, if not presenst = nil; parse order matters!!
 -- ####### HEAL SOURCE:ME TARGET:ME
-pcl.pHEALEDCRITSELFSELF = MakeGfindReady(HEALEDCRITSELFSELF) -- Your %s critically heals you for %d.
-pcl.pHEALEDSELFSELF = MakeGfindReady(HEALEDSELFSELF) -- Your %s heals you for %d.
-pcl.pPERIODICAURAHEALSELFSELF = MakeGfindReady(PERIODICAURAHEALSELFSELF) -- You gain %d health from %s.
-
--- ####### HEAL SOURCE:OTHER TARGET:ME (for escaping PERIODICAURAHEALSELFSELF)
-pcl.pHEALEDCRITOTHERSELF = MakeGfindReady(HEALEDCRITOTHERSELF) -- %s's %s critically heals you for %d.
-pcl.pHEALEDOTHERSELF = MakeGfindReady(HEALEDOTHERSELF) -- %s's %s heals you for %d.
-pcl.pPERIODICAURAHEALOTHERSELF = MakeGfindReady(PERIODICAURAHEALOTHERSELF) -- You gain %d health from %s's %s.
-
+combatlog_patterns[1] = {string=MakeGfindReady(HEALEDCRITSELFSELF), order={nil, 1, nil, 2, nil}, kind="heal"} -- Your %s critically heals you for %d. (parse before Your %s heals you for %d.)
+combatlog_patterns[2] = {string=MakeGfindReady(HEALEDSELFSELF), order={nil, 1, nil, 2, nil}, kind="heal"} -- Your %s heals you for %d.
+combatlog_patterns[6] = {string=MakeGfindReady(PERIODICAURAHEALSELFSELF), order={nil, 2, nil, 1, nil}, kind="heal"} -- You gain %d health from %s.
+-- ####### HEAL SOURCE:OTHER TARGET:ME
+combatlog_patterns[4] = {string=MakeGfindReady(HEALEDCRITOTHERSELF), order={1, 2, nil, 3, nil}, kind="heal"} -- %s's %s critically heals you for %d. (parse before %s's %s critically heals %s for %d.)
+combatlog_patterns[5] = {string=MakeGfindReady(HEALEDOTHERSELF), order={1, 2, nil, 3, nil}, kind="heal"} -- %s's %s heals you for %d.
+combatlog_patterns[3] = {string=MakeGfindReady(PERIODICAURAHEALOTHERSELF), order={2, 3, nil, 1, nil}, kind="heal"} -- You gain %d health from %s's %s. (parse before You gain %d health from %s.)
 -- ####### HEAL SOURCE:ME TARGET:OTHER
-pcl.pHEALEDCRITSELFOTHER = MakeGfindReady(HEALEDCRITSELFOTHER) -- Your %s critically heals %s for %d.
-pcl.pHEALEDSELFOTHER = MakeGfindReady(HEALEDSELFOTHER) -- Your %s heals %s for %d.
-pcl.pPERIODICAURAHEALSELFOTHER = MakeGfindReady(PERIODICAURAHEALSELFOTHER) -- %s gains %d health from your %s.
-
+combatlog_patterns[7] = {string=MakeGfindReady(HEALEDCRITSELFOTHER), order={nil, 1, 2, 3, nil}, kind="heal"} -- Your %s critically heals %s for %d. (parse before Your %s heals %s for %d.)
+combatlog_patterns[8] = {string=MakeGfindReady(HEALEDSELFOTHER), order={nil, 1, 2, 3, nil}, kind="heal"} -- Your %s heals %s for %d.
+combatlog_patterns[9] = {string=MakeGfindReady(PERIODICAURAHEALSELFOTHER), order={1, 2, nil, 3, nil}, kind="heal"} -- %s gains %d health from your %s.
 -- ####### HEAL SOURCE:OTHER TARGET:OTHER
-pcl.pHEALEDCRITOTHEROTHER = MakeGfindReady(HEALEDCRITOTHEROTHER) -- %s's %s critically heals %s for %d.
-pcl.pHEALEDOTHEROTHER = MakeGfindReady(HEALEDOTHEROTHER) -- %s's %s heals %s for %d.
-pcl.pPERIODICAURAHEALOTHEROTHER = MakeGfindReady(PERIODICAURAHEALOTHEROTHER) -- %s gains %d health from %s's %s.
+combatlog_patterns[10] = {string=MakeGfindReady(HEALEDCRITOTHEROTHER), order={1, 2, 3, 4, nil}, kind="heal"} -- %s's %s critically heals %s for %d.
+combatlog_patterns[11] = {string=MakeGfindReady(HEALEDOTHEROTHER), order={1, 2, 3, 4, nil}, kind="heal"} -- %s's %s heals %s for %d.
+combatlog_patterns[12] = {string=MakeGfindReady(PERIODICAURAHEALOTHEROTHER), order={3, 4, 1, 2, nil}, kind="heal"} -- %s gains %d health from %s's %s.
 
 -- ####### DAMAGE SOURCE:ME TARGET:OTHER
-pcl.pSPELLLOGSCHOOLSELFOTHER = MakeGfindReady(SPELLLOGSCHOOLSELFOTHER) -- Your %s hits %s for %d %s damage.
-pcl.pSPELLLOGCRITSCHOOLSELFOTHER = MakeGfindReady(SPELLLOGCRITSCHOOLSELFOTHER) -- Your %s crits %s for %d %s damage.
-pcl.pSPELLLOGSELFOTHER = MakeGfindReady(SPELLLOGSELFOTHER) -- Your %s hits %s for %d.
-pcl.pSPELLLOGCRITSELFOTHER = MakeGfindReady(SPELLLOGCRITSELFOTHER) -- Your %s crits %s for %d.
-pcl.pPERIODICAURADAMAGESELFOTHER = MakeGfindReady(PERIODICAURADAMAGESELFOTHER) -- %s suffers %d %s damage from your %s.
-pcl.pCOMBATHITSELFOTHER = MakeGfindReady(COMBATHITSELFOTHER) -- You hit %s for %d.
-pcl.pCOMBATHITCRITSELFOTHER = MakeGfindReady(COMBATHITCRITSELFOTHER) -- You crit %s for %d.
-pcl.pCOMBATHITSCHOOLSELFOTHER = MakeGfindReady(COMBATHITSCHOOLSELFOTHER) -- You hit %s for %d %s damage.
-pcl.pCOMBATHITCRITSCHOOLSELFOTHER = MakeGfindReady(COMBATHITCRITSCHOOLSELFOTHER) -- You crit %s for %d %s damage.
-pcl.pDAMAGESHIELDSELFOTHER = MakeGfindReady(DAMAGESHIELDSELFOTHER) -- You reflect %d %s damage to %s.
-
+combatlog_patterns[13] = {string=MakeGfindReady(SPELLLOGSCHOOLSELFOTHER), order={nil, 1, 2, 3, 4}, kind="dmg"} -- Your %s hits %s for %d %s damage. (parse before %s hits %s for %d %s damage.)
+combatlog_patterns[14] = {string=MakeGfindReady(SPELLLOGCRITSCHOOLSELFOTHER), order={nil, 1, 2, 3, 4}, kind="dmg"} -- Your %s crits %s for %d %s damage. (parse before %s crits %s for %d %s damage.)
+combatlog_patterns[15] = {string=MakeGfindReady(SPELLLOGSELFOTHER), order={nil, 1, 2, 3, nil}, kind="dmg"} -- Your %s hits %s for %d. (parse before %s hits %s for %d.)
+combatlog_patterns[16] = {string=MakeGfindReady(SPELLLOGCRITSELFOTHER), order={nil, 1, 2, 3, nil}, kind="dmg"} -- Your %s crits %s for %d. (parse before %s crits %s for %d.)
+combatlog_patterns[17] = {string=MakeGfindReady(PERIODICAURADAMAGESELFOTHER), order={nil, 4, 1, 2, 3}, kind="dmg"} -- %s suffers %d %s damage from your %s.
+combatlog_patterns[18] = {string=MakeGfindReady(COMBATHITSELFOTHER), order={nil, nil, 1, 2, nil}, kind="dmg"} -- You hit %s for %d.
+combatlog_patterns[19] = {string=MakeGfindReady(COMBATHITCRITSELFOTHER), order={nil, nil, 1, 2, nil}, kind="dmg"} -- You crit %s for %d.
+combatlog_patterns[20] = {string=MakeGfindReady(COMBATHITSCHOOLSELFOTHER), order={nil, nil, 1, 2, 3}, kind="dmg"} -- You hit %s for %d %s damage.
+combatlog_patterns[21] = {string=MakeGfindReady(COMBATHITCRITSCHOOLSELFOTHER), order={nil, nil, 1, 2, 3}, kind="dmg"} -- You crit %s for %d %s damage.
+combatlog_patterns[22] = {string=MakeGfindReady(DAMAGESHIELDSELFOTHER), order={nil, nil, 3, 1, 2}, kind="dmg"} -- You reflect %d %s damage to %s.
 -- ####### DAMAGE SOURCE:OTHER TARGET:OTHER
-pcl.pSPELLLOGSCHOOLOTHEROTHER = MakeGfindReady(SPELLLOGSCHOOLOTHEROTHER) -- %s's %s hits %s for %d %s damage.
-pcl.pSPELLLOGCRITSCHOOLOTHEROTHER = MakeGfindReady(SPELLLOGCRITSCHOOLOTHEROTHER)  -- %s's %s crits %s for %d %s damage.
-pcl.pSPELLLOGOTHEROTHER = MakeGfindReady(SPELLLOGOTHEROTHER) -- %s's %s hits %s for %d.
-pcl.pSPELLLOGCRITOTHEROTHER = MakeGfindReady(SPELLLOGCRITOTHEROTHER) -- %s's %s crits %s for %d.
-pcl.pPERIODICAURADAMAGEOTHEROTHER = MakeGfindReady(PERIODICAURADAMAGEOTHEROTHER) -- "%s suffers %d %s damage from %s's %s."
-pcl.pCOMBATHITOTHEROTHER = MakeGfindReady(COMBATHITOTHEROTHER) -- %s hits %s for %d.
-pcl.pCOMBATHITCRITOTHEROTHER = MakeGfindReady(COMBATHITCRITOTHEROTHER) -- %s crits %s for %d.
-pcl.pCOMBATHITSCHOOLOTHEROTHER = MakeGfindReady(COMBATHITSCHOOLOTHEROTHER) -- %s hits %s for %d %s damage.
-pcl.pCOMBATHITCRITSCHOOLOTHEROTHER = MakeGfindReady(COMBATHITCRITSCHOOLOTHEROTHER) -- %s crits %s for %d %s damage.
-pcl.pDAMAGESHIELDOTHEROTHER = MakeGfindReady(DAMAGESHIELDOTHEROTHER) -- %s reflects %d %s damage to %s.
+combatlog_patterns[23] = {string=MakeGfindReady(SPELLLOGSCHOOLOTHEROTHER), order={1, 2, 3, 4, 5}, kind="dmg"} -- %s's %s hits %s for %d %s damage. (parse before %s hits %s for %d %s damage.)
+combatlog_patterns[24] = {string=MakeGfindReady(SPELLLOGCRITSCHOOLOTHEROTHER), order={1, 2, 3, 4, 5}, kind="dmg"}  -- %s's %s crits %s for %d %s damage. (parse before %s crits %s for %d %s damage.)
+combatlog_patterns[25] = {string=MakeGfindReady(SPELLLOGOTHEROTHER), order={1, 2, 3, 4, nil}, kind="dmg"} -- %s's %s hits %s for %d. (parse before %s hits %s for %d.)
+combatlog_patterns[26] = {string=MakeGfindReady(SPELLLOGCRITOTHEROTHER), order={1, 2, 3, 4, nil}, kind="dmg"} -- %s's %s crits %s for %d. (parse before %s crits %s for %d.)
+combatlog_patterns[27] = {string=MakeGfindReady(PERIODICAURADAMAGEOTHEROTHER), order={4, 5, 1, 2, 3}, kind="dmg"} -- %s suffers %d %s damage from %s's %s.
+combatlog_patterns[28] = {string=MakeGfindReady(COMBATHITOTHEROTHER), order={1, nil, 2, 3, nil}, kind="dmg"} -- %s hits %s for %d.
+combatlog_patterns[29] = {string=MakeGfindReady(COMBATHITCRITOTHEROTHER), order={1, nil, 2, 3, nil}, kind="dmg"} -- %s crits %s for %d.
+combatlog_patterns[30] = {string=MakeGfindReady(COMBATHITSCHOOLOTHEROTHER), order={1, nil, 2, 3, 4}, kind="dmg"} -- %s hits %s for %d %s damage.
+combatlog_patterns[31] = {string=MakeGfindReady(COMBATHITCRITSCHOOLOTHEROTHER), order={1, nil, 2, 3, 4}, kind="dmg"} -- %s crits %s for %d %s damage.
+combatlog_patterns[32] = {string=MakeGfindReady(DAMAGESHIELDOTHEROTHER), order={1, nil, 4, 2, 3}, kind="dmg"} -- %s reflects %d %s damage to %s.
 
 
 
 parser:SetScript("OnEvent", function()
-    -- local source = UnitName("player")
-    local target = UnitName("player")
-    -- local school = "physical"
-    local attack = "Auto Hit"
+    local player_name = UnitName("player")
+    local pet_name = UnitName("pet")
 
     if arg1 then
-
       -- advancedvanillacombatlog compatibility: this addon turns
       -- "You" and "Your" into "player_name" and "player_name 's"
-      arg1 = string.gsub(arg1, target.." 's", "Your")
-      arg1 = string.gsub(arg1, target.." hits", "You hit")
-      arg1 = string.gsub(arg1, target.." crits", "You crit")
-      arg1 = string.gsub(arg1, target.." gains", "You gain")
+      arg1 = string.gsub(arg1, player_name.." 's", "Your")
+      arg1 = string.gsub(arg1, player_name.." hits", "You hit")
+      arg1 = string.gsub(arg1, player_name.." crits", "You crit")
+      arg1 = string.gsub(arg1, player_name.." gains", "You gain")
 
-    -- #################
-    -- # PARSE HEALING #
-    -- #################
+      -- #################
+      -- # PARSE HEALING #
+      -- #################
+      local pars = {}
+      for _,combatlog_pattern in ipairs(combatlog_patterns) do
+        for par_1, par_2, par_3, par_4, par_5 in string.gfind(arg1, combatlog_pattern.string) do
+          pars = {par_1, par_2, par_3, par_4, par_5}
+          local source = pars[combatlog_pattern.order[1]]
+          local attack = pars[combatlog_pattern.order[2]]
+          local target = pars[combatlog_pattern.order[3]]
+          local value = pars[combatlog_pattern.order[4]]
+          local school = pars[combatlog_pattern.order[5]]
 
-      -- ####### HEAL SOURCE:OTHER TARGET:ME
-      -- %s's %s critically heals you for %d.
-      for source, attack, value in string.gfind(arg1, pcl.pHEALEDCRITOTHERSELF) do
-        if not users[source] then -- if player does not use Kikimeter, add values from own combat log to data
-          local eHeal, oHeal = EOHeal(value, target)
-          AddData(data, source, "eheal", attack, eHeal)
-          AddData(data, source, "oheal", attack, oHeal) 
+          -- Default values, e.g. for "You hit xyz for 15"
+          if not source then
+            source = player_name
+          end
+          if not attack then
+            attack = "Hit"
+          end
+          if not target then
+            target = player_name
+          end
+          if not value then
+            value = 0
+          end
+          if not school then
+            school = "physical"
+          end
+
+          if source == player_name then -- if source = player_name -> BroadcastValue
+            if combatlog_pattern.kind == "heal" then
+              local eHeal, oHeal = EOHeal(value, target)
+              BroadcastValue(eHeal, attack, oHeal)
+            else
+              BroadcastValue(value, attack, nil)
+            end
+          elseif source == pet_name then -- if source = pet_name -> BroadcastValue
+            if combatlog_pattern.kind == "heal" then
+              local eHeal, oHeal = EOHeal(value, target)
+              BroadcastValue(eHeal, "Pet: "..attack, oHeal)
+            else
+              BroadcastValue(value, "Pet: "..attack, nil)
+            end
+          elseif not users[source] then -- source found, but not a user -> AddData
+            if combatlog_pattern.kind == "heal" then
+              local eHeal, oHeal = EOHeal(value, target)
+              AddData(data, source, "eheal", attack, eHeal)
+              AddData(data, source, "oheal", attack, oHeal) 
+            else
+              AddData(data, source, "dmg", attack, value)
+            end
+          end
+          return -- if pattern found, abort loop
         end
-        return
       end
-
-      -- %s's %s heals you for %d.
-      for source, attack, value in string.gfind(arg1, pcl.pHEALEDOTHERSELF) do
-        if not users[source] then -- if player does not use Kikimeter, add values from own combat log to data
-          local eHeal, oHeal = EOHeal(value, target)
-          AddData(data, source, "eheal", attack, eHeal)
-          AddData(data, source, "oheal", attack, oHeal) 
-        end
-        return
-      end
-
-      -- You gain %d health from %s's %s. (has to be before "You gain %d health from %s.")
-      for value, source, attack in string.gfind(arg1, pcl.pPERIODICAURAHEALOTHERSELF) do
-        if not users[source] then -- if player does not use Kikimeter, add values from own combat log to data
-          local eHeal, oHeal = EOHeal(value, target)
-          AddData(data, source, "eheal", attack, eHeal)
-          AddData(data, source, "oheal", attack, oHeal) 
-        end
-        return
-      end
-
-      -- ####### HEAL SOURCE:ME TARGET:ME
-      -- Your %s critically heals you for %d.
-      for attack, value in string.gfind(arg1, pcl.pHEALEDCRITSELFSELF) do
-        local eHeal, oHeal = EOHeal(value, target)
-        BroadcastValue(eHeal, attack, oHeal)
-        return
-      end
-
-      -- Your %s heals you for %d.
-      for attack, value in string.gfind(arg1, pcl.pHEALEDSELFSELF) do
-        local eHeal, oHeal = EOHeal(value, target)
-        BroadcastValue(eHeal, attack, oHeal)
-        return
-      end
-
-      -- You gain %d health from %s.
-      for value, attack in string.gfind(arg1, pcl.pPERIODICAURAHEALSELFSELF) do
-        local eHeal, oHeal = EOHeal(value, target)
-        BroadcastValue(eHeal, attack, oHeal)
-        return
-      end
-
-      -- ####### HEAL SOURCE:ME TARGET:OTHER
-      -- Your %s critically heals %s for %d.
-      for attack, target, value in string.gfind(arg1, pcl.pHEALEDCRITSELFOTHER) do
-        local eHeal, oHeal = EOHeal(value, target)
-        BroadcastValue(eHeal, attack, oHeal)
-        return
-      end
-
-      -- Your %s heals %s for %d.
-      for attack, target, value in string.gfind(arg1, pcl.pHEALEDSELFOTHER) do
-        local eHeal, oHeal = EOHeal(value, target)
-        BroadcastValue(eHeal, attack, oHeal)
-        return
-      end
-
-      -- %s gains %d health from your %s.
-      for target, value, attack in string.gfind(arg1, pcl.pPERIODICAURAHEALSELFOTHER) do
-        local eHeal, oHeal = EOHeal(value, target)
-        BroadcastValue(eHeal, attack, oHeal)
-        return
-      end 
-
-      -- ####### HEAL SOURCE:OTHER TARGET:OTHER
-      -- %s's %s critically heals %s for %d.
-      for source, attack, target, value in string.gfind(arg1, pcl.pHEALEDCRITOTHEROTHER) do
-        if not users[source] then -- if player does not use Kikimeter, add values from own combat log to data
-          local eHeal, oHeal = EOHeal(value, target)
-          AddData(data, source, "eheal", attack, eHeal)
-          AddData(data, source, "oheal", attack, oHeal) 
-        end
-        return
-      end
-
-      -- %s's %s heals %s for %d.
-      for source, attack, target, value in string.gfind(arg1, pcl.pHEALEDOTHEROTHER) do
-        if not users[source] then -- if player does not use Kikimeter, add values from own combat log to data
-          local eHeal, oHeal = EOHeal(value, target)
-          AddData(data, source, "eheal", attack, eHeal)
-          AddData(data, source, "oheal", attack, oHeal) 
-        end
-        return
-      end
-
-      -- %s gains %d health from %s's %s.
-      for target, value, source, attack in string.gfind(arg1, pcl.pPERIODICAURAHEALOTHEROTHER) do
-        if not users[source] then -- if player does not use Kikimeter, add values from own combat log to data
-          local eHeal, oHeal = EOHeal(value, target)
-          AddData(data, source, "eheal", attack, eHeal)
-          AddData(data, source, "oheal", attack, oHeal) 
-        end
-        return
-      end
-
-
-      -- ################
-      -- # PARSE DAMAGE #
-      -- ################
-
-      -- ####### DAMAGE SOURCE:ME TARGET:OTHER
-      -- Your %s hits %s for %d %s damage.
-      for attack, target, value, school in string.gfind(arg1, pcl.pSPELLLOGSCHOOLSELFOTHER) do
-        BroadcastValue(value, attack, nil)
-        return
-      end
-
-       -- Your %s crits %s for %d %s damage.
-      for attack, target, value, school in string.gfind(arg1, pcl.pSPELLLOGCRITSCHOOLSELFOTHER) do
-        BroadcastValue(value, attack, nil)
-        return
-      end
-
-       -- Your %s hits %s for %d. (has to be before "%s hits %s for %d.")
-      for attack, target, value in string.gfind(arg1, pcl.pSPELLLOGSELFOTHER) do
-        BroadcastValue(value, attack, nil)
-        return
-      end
-
-       -- Your %s crits %s for %d.
-      for attack, target, value in string.gfind(arg1, pcl.pSPELLLOGCRITSELFOTHER) do
-        BroadcastValue(value, attack, nil)
-        return
-      end
-
-      -- %s suffers %d %s damage from your %s.
-      for target, value, school, attack in string.gfind(arg1, pcl.pPERIODICAURADAMAGESELFOTHER) do
-        BroadcastValue(value, attack, nil)
-        return
-      end
-
-      -- You hit %s for %d.
-      for target, value in string.gfind(arg1, pcl.pCOMBATHITSELFOTHER) do
-        BroadcastValue(value, attack, nil)
-        return
-      end
-
-      -- You crit %s for %d.
-      for target, value in string.gfind(arg1, pcl.pCOMBATHITCRITSELFOTHER) do
-        BroadcastValue(value, attack, nil)
-        return
-      end
-
-      -- You hit %s for %d %s damage.
-      for target, value, school in string.gfind(arg1, pcl.pCOMBATHITSCHOOLSELFOTHER) do
-        BroadcastValue(value, attack, nil)
-        return
-      end
-
-      -- You crit %s for %d %s damage.
-      for target, value, school in string.gfind(arg1, pcl.pCOMBATHITCRITSCHOOLSELFOTHER) do
-        BroadcastValue(value, attack, nil)
-        return
-      end
-
-      -- You reflect %d %s damage to %s.
-      for value, school, target in string.gfind(arg1, pcl.pDAMAGESHIELDSELFOTHER) do
-        BroadcastValue(value, "Reflect", nil)
-        return
-      end
-
-      -- ####### DAMAGE SOURCE:OTHER TARGET:OTHER
-      local pet_name = UnitName("pet") -- pet_name has to be checked each event (could be renamed/resummoned)
-      -- %s's %s hits %s for %d %s damage. (has to be before "%s hits %s for %d %s damage.")
-      for source, attack, target, value, school in string.gfind(arg1, pcl.pSPELLLOGSCHOOLOTHEROTHER) do
-        if source == pet_name then
-          BroadcastValue(value, "Pet: "..attack, nil)
-        elseif not users[source] then -- if player does not use Kikimeter, add values from own combat log to data
-          AddData(data, source, "dmg", attack, value)
-        end
-        return
-      end
-
-       -- %s's %s crits %s for %d %s damage. (has to be before "%s crits %s for %d %s damage.")
-      for source, attack, target, value, school in string.gfind(arg1, pcl.pSPELLLOGCRITSCHOOLOTHEROTHER) do
-        if source == pet_name then
-          BroadcastValue(value, "Pet: "..attack, nil)
-        elseif not users[source] then -- if player does not use Kikimeter, add values from own combat log to data
-          AddData(data, source, "dmg", attack, value)
-        end
-        return
-      end
-
-       -- %s's %s hits %s for %d.
-      for source, attack, target, value in string.gfind(arg1, pcl.pSPELLLOGOTHEROTHER) do
-        if source == pet_name then
-          BroadcastValue(value, "Pet: "..attack, nil)
-        elseif not users[source] then -- if player does not use Kikimeter, add values from own combat log to data
-          AddData(data, source, "dmg", attack, value)
-        end
-        return
-      end
-
-       -- %s's %s crits %s for %d. (has to be before "%s crits %s for %d.")
-      for source, attack, target, value, school in string.gfind(arg1, pcl.pSPELLLOGCRITOTHEROTHER) do
-        if source == pet_name then
-          BroadcastValue(value, "Pet: "..attack, nil)
-        elseif not users[source] then -- if player does not use Kikimeter, add values from own combat log to data
-          AddData(data, source, "dmg", attack, value)
-        end
-        return
-      end
-
-      -- %s suffers %d %s damage from %s's %s.
-      for target, value, school, source, attack in string.gfind(arg1, pcl.pPERIODICAURADAMAGEOTHEROTHER) do
-        if source == pet_name then
-          BroadcastValue(value, "Pet: "..attack, nil)
-        elseif not users[source] then -- if player does not use Kikimeter, add values from own combat log to data
-          AddData(data, source, "dmg", attack, value)
-        end
-        return
-      end
-
-      -- %s hits %s for %d.
-      for source, target, value in string.gfind(arg1, pcl.pCOMBATHITOTHEROTHER) do
-        if source == pet_name then
-          BroadcastValue(value, "Pet: "..attack, nil)
-        elseif not users[source] then -- if player does not use Kikimeter, add values from own combat log to data
-          AddData(data, source, "dmg", attack, value)
-        end
-        return
-      end
-
-      -- %s crits %s for %d.
-      for source, target, value in string.gfind(arg1, pcl.pCOMBATHITCRITOTHEROTHER) do
-        if source == pet_name then
-          BroadcastValue(value, "Pet: "..attack, nil)
-        elseif not users[source] then -- if player does not use Kikimeter, add values from own combat log to data
-          AddData(data, source, "dmg", attack, value)
-        end
-        return
-      end
-
-      -- %s hits %s for %d %s damage.
-      for source, target, school, value in string.gfind(arg1, pcl.pCOMBATHITSCHOOLOTHEROTHER) do
-        if source == pet_name then
-          BroadcastValue(value, "Pet: "..attack, nil)
-        elseif not users[source] then -- if player does not use Kikimeter, add values from own combat log to data
-          AddData(data, source, "dmg", attack, value)
-        end
-        return
-      end
-
-      -- %s crits %s for %d %s damage.
-      for source, target, school, value in string.gfind(arg1, pcl.pCOMBATHITCRITSCHOOLOTHEROTHER) do
-        if source == pet_name then
-          BroadcastValue(value, "Pet: "..attack, nil)
-        elseif not users[source] then -- if player does not use Kikimeter, add values from own combat log to data
-          AddData(data, source, "dmg", attack, value)
-        end
-        return
-      end
-
-      -- %s reflects %d %s damage to %s.
-      for source, value, school, target in string.gfind(arg1, pcl.pDAMAGESHIELDOTHEROTHER) do
-        if source == pet_name then
-          BroadcastValue(value, "Pet: Reflect", nil)
-        elseif not users[source] then -- if player does not use Kikimeter, add values from own combat log to data
-          AddData(data, source, "dmg", "Reflect", value)
-        end
-        return
-      end   
     end
 end)
 

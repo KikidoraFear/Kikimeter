@@ -4,7 +4,7 @@
 - always show self if not in shown bars (either on top or bottom with placement)
 - Use SendAddonMessage for data chunks to improve performance
 - use ##SavedVariablesPerCharacter data to store table between sessions
-- add button to show all data in the middle of screen (for screenshots)
+- RECEPTOR DEMANDS: BOSS FILTER AND BUTTON TO HIDE HEALING DONE
 
 
 ## State

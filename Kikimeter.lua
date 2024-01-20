@@ -37,7 +37,8 @@ local config = {
   gui_hidden = false, -- hides the window
   data_kinds = {"dmg", "eheal", "oheal"},
   data_bosses = {"High Priestess Jeklik", "High Priest Venoxis", "High Priestess Mar'li", "High Priest Thekal", "High Priestess Arlokk", "Hakkar", "Bloodlord Mandokir", "Jin'do the Hexxer", "Gahz'ranka", -- ZG
-    "Onyxia"} -- Onyxia
+    "Onyxia",  -- Onyxia
+    "The Prophet Skeram", "Battleguard Sartura", "Fankriss the Unyielding", "Princess Huhuran", "Emperor Vek'lor", "Emperor Vek'nilash", "C'Thun", "Viscidus", "Ouro", "Princess Yauj", "Vem", "Lord Kri"} -- AQ40
 }
 config.sub_height = config.bar_height*config.bars_show_act -- height of one table
 

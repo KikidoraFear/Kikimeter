@@ -2,6 +2,6 @@
 ## Title: Kikimeter4
 ## Author: Kikidora
 ## Notes: damage/heal meter that broadcasts user's damage/heal to other clients for accurate tracking
-## Version: 4.1
+## Version: 4.2
 
 Kikimeter.lua

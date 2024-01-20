@@ -36,7 +36,8 @@ local config = {
   refresh_time = 0.1, -- refresh time in seconds (for updating Bars)
   gui_hidden = false, -- hides the window
   data_kinds = {"dmg", "eheal", "oheal"},
-  data_bosses = {"High Priestess Jeklik", "High Priest Venoxis", "High Priestess Mar'li", "High Priest Thekal", "High Priestess Arlokk", "Hakkar", "Bloodlord Mandokir", "Jin'do the Hexxer", "Gahz'ranka"},
+  data_bosses = {"High Priestess Jeklik", "High Priest Venoxis", "High Priestess Mar'li", "High Priest Thekal", "High Priestess Arlokk", "Hakkar", "Bloodlord Mandokir", "Jin'do the Hexxer", "Gahz'ranka", -- ZG
+    "Onyxia"} -- Onyxia
 }
 config.sub_height = config.bar_height*config.bars_show_act -- height of one table
 
@@ -406,6 +407,8 @@ combat_status:SetScript("OnEvent", function()
   if UnitAffectingCombat("player") or UnitAffectingCombat("pet") then
     player_section = "Trash"
     window.text_top_left:SetText("Section: Trash")
+    data_filter[2] = "Trash"
+    window.text_top_right:SetText("Bottom: Trash")
   else
     player_section = "NoCombat"
     window.text_top_left:SetText("Section: NoCombat")
@@ -543,6 +546,8 @@ parser:SetScript("OnEvent", function()
               if (boss == source) or (boss == target) then
                 player_section = boss
                 window.text_top_left:SetText("Section: "..boss)
+                data_filter[2] = boss
+                window.text_top_right:SetText("Bottom: "..boss)
                 break
               end
             end

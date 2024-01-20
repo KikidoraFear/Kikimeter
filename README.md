@@ -1,11 +1,10 @@
 # Kikimeter
 ## ToDo
-- add buttons on top to reset/pause every table with one click
 - always show self if not in shown bars (either on top or bottom with placement)
-- Use SendAddonMessage for data chunks to improve performance
+- Maybe use SendAddonMessage for data chunks to improve performance
 - use ##SavedVariablesPerCharacter data to store table between sessions
-- RECEPTOR DEMANDS: BOSS FILTER AND BUTTON TO HIDE HEALING DONE
-
+- add hide button
+- add scrolling (mousewheel support)
 
 ## State
 - accuracy of values displayed need further testing
@@ -15,14 +14,12 @@
 Only works when in a raid or party!  
 parses your damage and healing done from the combat log and broadcasts values to other players, eliminating
 the issue of inaccuracies caused by players being out of range  
-![Screenshot 2023-12-27 194439](https://github.com/KikidoraFear/Kikimeter/assets/154637862/e27c3e2f-a9a4-4963-92a4-b56bdc2f7f17)
+![image](https://github.com/KikidoraFear/Kikimeter/assets/154637862/0f1a627b-611f-4a8c-8530-293d6234f290)
   
 Kikimeter supports
 - tracking of damage (left), effective heal (middle), over heal (right)
-- 3 separate meters that can be paused and reset individually (top, middle, bottom)
+- 2 separate meters that can track different sections of the fight
 - ranking and sorting of players
-- mousewheel scroll
 - damage values from pets are added to their owners
 - detailed break down of spells and hits on hover (pet's damage indicated with Pet: ...)
 - detailed spells are sorted by value
-- Hide button (top right) to hide window (click button again to show)

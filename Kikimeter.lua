@@ -170,8 +170,7 @@ local data = {}
 -- data[data_section][data_kind]._players[name]._ranking[rank] = attack
 -- data[data_section][data_kind]._players[name]._sum = value
 
--- local data_filter = {"InCombat", "Bosses"}
-local data_filter = {"InCombat", "NoCombat"}
+local data_filter = {"InCombat", "Bosses"}
 -- data_filter[data_sub] = section
 
 local data_users = {}

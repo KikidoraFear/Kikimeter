@@ -31,7 +31,6 @@ local config = {
   sub_cols = 3, -- number of columns for each meter
   font_size = 8, -- font size for name and damage numbers
   btn_height = 20, -- size of buttons
-  btn_width = 50, -- size of buttons
   window_text_height = 10, -- added text space in window
   refresh_time = 0.1, -- refresh time in seconds (for updating Bars)
   gui_hidden = false, -- hides the window
@@ -41,6 +40,7 @@ local config = {
     "The Prophet Skeram", "Battleguard Sartura", "Fankriss the Unyielding", "Princess Huhuran", "Emperor Vek'lor", "Emperor Vek'nilash", "C'Thun", "Viscidus", "Ouro", "Princess Yauj", "Vem", "Lord Kri"} -- AQ40
 }
 config.sub_height = config.bar_height*config.bars_show_act -- height of one table
+config.sub_width = config.bar_width*config.sub_cols + config.sub_spacing*(config.sub_cols-1)
 
 -- ####################
 -- # HELPER FUNCTIONS #
@@ -217,11 +217,11 @@ local function TextLayout(parent, text, align, pos_h, pos_v)
   text:Hide()
 end
 
-local function ButtonLayout(parent, btn, txt, pos_btn, pos_parent, pos_v, width_multiplier)
+local function ButtonLayout(parent, btn, txt, pos_btn, pos_parent, pos_v, pos_h, width_multiplier)
   btn:ClearAllPoints()
-  btn:SetPoint(pos_btn, parent, pos_parent, 0, pos_v)
+  btn:SetPoint(pos_btn, parent, pos_parent, pos_h, pos_v)
   btn:SetHeight(config.btn_height)
-  btn:SetWidth(config.btn_width*width_multiplier)
+  btn:SetWidth(config.sub_width*width_multiplier)
   btn:SetBackdrop({bgFile="Interface\\Tooltips\\UI-Tooltip-Background",
     edgeFile="Interface\\Tooltips\\UI-Tooltip-Border",
     tile = true, tileSize = 16, edgeSize = 8,
@@ -305,8 +305,42 @@ local function WindowLayout(window)
   window.text_bottom_right:SetText("over healing")
   window.text_bottom_right:Show()
 
+  window.button_reset = CreateFrame("Button", nil, window)
+  ButtonLayout(window, window.button_reset, "Reset", "BOTTOMLEFT", "TOPLEFT", 0, 0, 0.1)
+  window.button_reset:SetScript("OnClick", function()
+    for data_section,_ in pairs(data) do
+      data[data_section] = nil
+    end
+  end)
+
+  window.button_section = CreateFrame("Button", nil, window)
+  ButtonLayout(window, window.button_section, "Section", "BOTTOMLEFT", "TOPLEFT", 0, config.sub_width*0.1, 0.5)
+  local button_section_show = false
+  window.button_section:SetScript("OnClick", function()
+    if not button_section_show then
+      local idx_btn = 1
+      for data_section, _ in pairs(data) do
+        local data_section_f = data_section
+        window.button_section[data_section_f] = CreateFrame("Button", nil, window.button_section)
+        window.button_section[data_section_f]:SetScript("OnClick", function()
+          data_filter[2] = data_section_f
+          window.text_top_right:SetText("Bottom: "..data_section_f)
+        end)
+        ButtonLayout(window.button_section, window.button_section[data_section_f], data_section_f, "BOTTOM", "BOTTOM", config.btn_height*idx_btn, 0, 0.5)
+        idx_btn = idx_btn+1
+      end
+      button_section_show = true
+    else
+      for data_section, _ in pairs(data) do
+        local data_section_f = data_section
+        window.button_section[data_section_f]:Hide()
+      end
+      button_section_show = false
+    end
+  end)
+
   window.button_max = CreateFrame("Button", nil, window)
-  ButtonLayout(window, window.button_max, "Maximise", "BOTTOMRIGHT", "TOPRIGHT", 0, 1)
+  ButtonLayout(window, window.button_max, "Maximise", "BOTTOMLEFT", "TOPLEFT", 0, config.sub_width*0.6, 0.2)
   window.button_max:SetScript("OnClick", function()
     if config.bars_show_act == config.bars_show_min then
       config.bars_show_act = config.bars_show_max
@@ -320,41 +354,6 @@ local function WindowLayout(window)
       SubTypeLayout(window.sub[idx_sub], window.sub[idx_sub].dmg, 0, 1)
       SubTypeLayout(window.sub[idx_sub], window.sub[idx_sub].eheal, config.bar_width + config.sub_spacing, 2)
       SubTypeLayout(window.sub[idx_sub], window.sub[idx_sub].oheal, 2*config.bar_width + 2*config.sub_spacing, 3)
-    end
-  end)
-
-  window.button_section = CreateFrame("Button", nil, window)
-  ButtonLayout(window, window.button_section, "Section", "BOTTOM", "TOP", 0, 3)
-  local button_section_show = false
-  window.button_section:SetScript("OnClick", function()
-    if not button_section_show then
-      local idx_btn = 1
-      for data_section, _ in pairs(data) do
-        local data_section_f = data_section
-        window.button_section[data_section_f] = CreateFrame("Button", nil, window.button_section)
-        window.button_section[data_section_f]:SetScript("OnClick", function()
-          data_filter[2] = data_section_f
-          window.text_top_right:SetText("Bottom: "..data_section_f)
-        end)
-        ButtonLayout(window.button_section, window.button_section[data_section_f], data_section_f, "BOTTOM", "BOTTOM", config.btn_height*idx_btn, 3)
-        idx_btn = idx_btn+1
-      end
-      button_section_show = true
-    else
-      for data_section, _ in pairs(data) do
-        local data_section_f = data_section
-        window.button_section[data_section_f]:Hide()
-      end
-      button_section_show = false
-    end
-  end)
-
-  window.button_reset = CreateFrame("Button", nil, window)
-  ButtonLayout(window, window.button_reset, "Reset", "BOTTOMLEFT", "TOPLEFT", 0, 1)
-  window.button_reset:SetScript("OnClick", function()
-    DEFAULT_CHAT_FRAME:AddMessage("KikiMeter has been reset.")
-    for data_section,_ in pairs(data) do
-      data[data_section] = nil
     end
   end)
 end
@@ -397,6 +396,16 @@ for idx_sub = 1,config.sub_rows do
     CreateBar(window.sub[idx_sub].oheal, idx_sub_bar, 3)
   end
 end
+
+local button_hide = CreateFrame("Button", nil, UIParent)
+ButtonLayout(window, button_hide, "Kikimeter", "BOTTOMLEFT", "TOPLEFT", 0, config.sub_width*0.8, 0.2)
+button_hide:SetScript("OnClick", function()
+  if window:IsShown() then
+    window:Hide()
+  else
+    window:Show()
+  end
+end)
 
 -- ############################################
 -- # PARSE COMBAT LOG AND BROADCAST SOURCE:ME #

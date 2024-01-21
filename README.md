@@ -3,7 +3,6 @@
 - always show self if not in shown bars (either on top or bottom with placement)
 - Maybe use SendAddonMessage for data chunks to improve performance
 - use ##SavedVariablesPerCharacter data to store table between sessions
-- add hide button
 - add scrolling (mousewheel support)
 
 ## State

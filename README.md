@@ -10,6 +10,7 @@
 - query combat status for each player
 - use boss list for current zone only
 - add button to list only meter users (for better performance): maybe not a good idea because of boss detection (has to parse every log anyway)
+- make top include NoCombat
 
 ## State
 - accuracy of values displayed need further testing

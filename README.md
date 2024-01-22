@@ -6,6 +6,7 @@
 - add scrolling (mousewheel support)
 - detect zone and only loop over the bosses in the raid
 - add button to reset specific sections (the one displayed in the bottom meter)
+- display sections as grid rather than row
 
 ## State
 - accuracy of values displayed need further testing

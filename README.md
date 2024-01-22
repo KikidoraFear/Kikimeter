@@ -8,6 +8,7 @@
 - add button to reset specific sections (the one displayed in the bottom meter)
 - display sections as grid rather than row
 - query combat status for each player
+- use boss list for current zone only
 
 ## State
 - accuracy of values displayed need further testing

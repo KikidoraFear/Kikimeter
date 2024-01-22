@@ -9,6 +9,7 @@
 - display sections as grid rather than row
 - query combat status for each player
 - use boss list for current zone only
+- add button to list only meter users (for better performance)
 
 ## State
 - accuracy of values displayed need further testing

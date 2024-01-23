@@ -7,6 +7,7 @@
 - add button to reset specific sections (the one displayed in the bottom meter)
 - query combat status for each player
 - add button to list only meter users (for better performance): maybe not a good idea because of boss detection (has to parse every log anyway)
+- add DPS and HPS value
 
 ## State
 - accuracy of values displayed need further testing

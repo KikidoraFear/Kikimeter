@@ -33,14 +33,19 @@ local config = {
   btn_height = 20, -- size of buttons
   window_text_height = 10, -- added text space in window
   refresh_time = 0.1, -- refresh time in seconds (for updating Bars)
-  gui_hidden = false, -- hides the window
-  data_kinds = {"dmg", "eheal", "oheal"},
-  data_bosses = {"High Priestess Jeklik", "High Priest Venoxis", "High Priestess Mar'li", "High Priest Thekal", "High Priestess Arlokk", "Hakkar", "Bloodlord Mandokir", "Jin'do the Hexxer", "Gahz'ranka", -- ZG
-    "Onyxia",  -- Onyxia
-    "The Prophet Skeram", "Battleguard Sartura", "Fankriss the Unyielding", "Princess Huhuran", "Emperor Vek'lor", "Emperor Vek'nilash", "C'Thun", "Viscidus", "Ouro", "Princess Yauj", "Vem", "Lord Kri"} -- AQ40
+  data_bosses = {}
 }
 config.sub_height = config.bar_height*config.bars_show_act -- height of one table
 config.sub_width = config.bar_width*config.sub_cols + config.sub_spacing*(config.sub_cols-1)
+config.data_bosses["Ahn'Qiraj"] = {"Arygos", "Battleguard Sartura", "C'Thun", "Emperor Vek'lor", "Emperor Vek'nilash", "Eye of C'Thun", "Fankriss the Unyielding", "Lord Kri", "Merithra of the Dream", "Ouro", "Princess Huhuran", "Princess Yauj", "The Master's Eye", "The Prophet Skeram", "Vem", "Viscidus"}
+config.data_bosses["Blackwing Lair"] = {"Broodlord Lashlayer", "Chromaggus", "Ebonroc", "Firemaw", "Flamegor", "Lord Victor Nefarius", "Razorgore the Untamed", "Vaelastrasz the Corrupt"}
+config.data_bosses["Molten Core"] = {"Baron Geddon", "Garr", "Gehennas", "Golemagg the Incinerator", "Lucifron", "Magmadar", "Shazzrah", "Sulfuron Harbinger"}
+config.data_bosses["Onyxia's Lair"] = {"Onyxia"}
+config.data_bosses["Ruins of Ahn'Qiraj"] = {"Ayamiss the Hunter", "Buru the Gorger", "General Rajaxx", "Kurinnaxx", "Moam", "Ossirian the Unscarred"}
+config.data_bosses["Zul'Gurub"] = {"High Priestess Jeklik", "High Priest Venoxis", "High Priestess Mar'li", "High Priest Thekal", "High Priestess Arlokk", "Hakkar", "Bloodlord Mandokir", "Jin'do the Hexxer", "Gahz'ranka"}
+config.data_bosses["Emerald Sanctum"] = {"Erennius", "Solnius the Awakener"}
+config.data_bosses["Lower Karazhan Halls"] = {"Master Blacksmith Rolfen", "Brood Queen Araxxna", "Grizikil", "Clawlord Howlfang", "Lord Blackwald II", "Moroes"}
+
 
 -- ####################
 -- # HELPER FUNCTIONS #
@@ -119,6 +124,7 @@ end
 local function AddData(data, data_section, data_kind, player_name, attack, value) 
   -- Insert new data into table
   AddDataSection(data, data_section, data_kind, player_name, attack, value)
+  AddDataSection(data, "All", data_kind, player_name, attack, value)
   if data_section ~= "NoCombat" then
     AddDataSection(data, "InCombat", data_kind, player_name, attack, value)
     if data_section ~= "Trash" then
@@ -172,7 +178,7 @@ local data = {}
 -- data[data_section][data_kind]._players[name]._ranking[rank] = attack
 -- data[data_section][data_kind]._players[name]._sum = value
 
-local data_filter = {"InCombat", "Bosses"}
+local data_filter = {"All", "Bosses"}
 -- data_filter[data_sub] = section
 
 local data_users = {}
@@ -183,6 +189,7 @@ for i=2,5 do unitIDs[i] = "party"..i-1 end -- unitIDs party
 for i=6,45 do unitIDs[i] = "raid"..i-5 end -- unitIDs raid
 local unitIDs_cache = {} -- init unitIDs_cache[name] = unitID
 local player_section = "NoCombat" -- shows the status of the player (what the player is fighting and if in combat)
+local player_zone = ""
 
 -- ##########
 -- # LAYOUT #
@@ -291,7 +298,7 @@ local function WindowLayout(window)
 
   window.text_top_left = window:CreateFontString("Status", "OVERLAY", "GameFontNormal")
   TextLayout(window, window.text_top_left, "TOPLEFT", 0, 0)
-  window.text_top_left:SetText("Section: NoCombat")
+  window.text_top_left:SetText(player_zone..": NoCombat")
   window.text_top_left:Show()
 
   window.text_top_center = window:CreateFontString("Status", "OVERLAY", "GameFontNormal")
@@ -430,12 +437,12 @@ combat_status:RegisterEvent("PLAYER_REGEN_ENABLED")
 combat_status:SetScript("OnEvent", function()
   if UnitAffectingCombat("player") or UnitAffectingCombat("pet") then
     player_section = "Trash"
-    window.text_top_left:SetText("Section: Trash")
+    window.text_top_left:SetText(player_zone..": Trash")
     data_filter[2] = "Trash"
     window.text_top_right:SetText("Bottom: Trash")
   else
     player_section = "NoCombat"
-    window.text_top_left:SetText("Section: NoCombat")
+    window.text_top_left:SetText(player_zone..": NoCombat")
   end
 end)
 
@@ -565,11 +572,11 @@ parser:SetScript("OnEvent", function()
           end
           
           -- Check if boss fight
-          if player_section == "Trash" then -- only swap to boss if in combat (=Trash), also helps if multiple bosses are fought at the same time (only lists first boss)
-            for _, boss in ipairs(config.data_bosses) do
+          if (player_section == "Trash") and (config.data_bosses[player_zone]) then -- only swap to boss if in combat (=Trash), also helps if multiple bosses are fought at the same time (only lists first boss)
+            for _, boss in ipairs(config.data_bosses[player_zone]) do
               if (boss == source) or (boss == target) then
                 player_section = boss
-                window.text_top_left:SetText("Section: "..boss)
+                window.text_top_left:SetText(player_zone..": "..boss)
                 data_filter[2] = boss
                 window.text_top_right:SetText("Bottom: "..boss)
                 break
@@ -682,16 +689,16 @@ window:SetScript("OnUpdate", function()
       -- if data[data_section] then
         if window.cycle == 0 then
           -- if data[data_section].dmg then
-            UpdateSubKind(data, data_section, "dmg", window.sub[idx_sub].dmg.bars)       
+            UpdateSubKind(data, data_section, "dmg", window.sub[idx_sub].dmg.bars)
           -- end   
         elseif window.cycle == 1 then
           -- if data[data_section].eheal then
-            UpdateSubKind(data, data_section, "eheal", window.sub[idx_sub].eheal.bars)   
+            UpdateSubKind(data, data_section, "eheal", window.sub[idx_sub].eheal.bars)
             -- UpdateSubKind(data[data_section].eheal, window.sub[idx_sub].eheal.bars) 
           -- end
         elseif window.cycle == 2 then
           -- if data[data_section].oheal then
-            UpdateSubKind(data, data_section, "oheal", window.sub[idx_sub].oheal.bars)   
+            UpdateSubKind(data, data_section, "oheal", window.sub[idx_sub].oheal.bars)
             -- UpdateSubKind(data[data_section].oheal, window.sub[idx_sub].oheal.bars) 
           -- end
         end
@@ -705,6 +712,7 @@ window:SetScript("OnUpdate", function()
           unitIDs_cache[name] = unitID
         end
       end
+      player_zone = GetZoneText()
     end
 
     window.clock = GetTime()

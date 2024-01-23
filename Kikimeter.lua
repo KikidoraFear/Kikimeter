@@ -46,7 +46,7 @@ config.data_bosses["Zul'Gurub"] = {"High Priestess Jeklik", "High Priest Venoxis
 config.data_bosses["Emerald Sanctum"] = {"Erennius", "Solnius the Awakener"}
 config.data_bosses["Lower Karazhan Halls"] = {"Master Blacksmith Rolfen", "Brood Queen Araxxna", "Grizikil", "Clawlord Howlfang", "Lord Blackwald II", "Moroes"}
 
-config.data_bosses["Teldrassil"] = {"Young Thistle Boar", "Grellkin"}
+-- config.data_bosses["Teldrassil"] = {"Young Thistle Boar", "Grellkin"}
 
 
 -- ####################

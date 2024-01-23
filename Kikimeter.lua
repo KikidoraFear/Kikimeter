@@ -46,6 +46,8 @@ config.data_bosses["Zul'Gurub"] = {"High Priestess Jeklik", "High Priest Venoxis
 config.data_bosses["Emerald Sanctum"] = {"Erennius", "Solnius the Awakener"}
 config.data_bosses["Lower Karazhan Halls"] = {"Master Blacksmith Rolfen", "Brood Queen Araxxna", "Grizikil", "Clawlord Howlfang", "Lord Blackwald II", "Moroes"}
 
+config.data_bosses["Teldrassil"] = {"Young Thistle Boar", "Grellkin"}
+
 
 -- ####################
 -- # HELPER FUNCTIONS #
@@ -339,7 +341,9 @@ local function WindowLayout(window)
   local button_section_show = false
   window.button_section:SetScript("OnClick", function()
     if not button_section_show then
-      local idx_btn = 1
+      local idx_btn = 0
+      local row_btn = 0
+      local col_btn = 0
       for data_section, _ in pairs(data) do
         local data_section_f = data_section
         window.button_section[data_section_f] = CreateFrame("Button", nil, window.button_section)
@@ -347,14 +351,18 @@ local function WindowLayout(window)
           data_filter[2] = data_section_f
           window.text_top_right:SetText("Bottom: "..data_section_f)
         end)
-        ButtonLayout(window.button_section, window.button_section[data_section_f], data_section_f, "BOTTOM", "BOTTOM", config.btn_height*idx_btn, 0, 0.5)
+        ButtonLayout(window, window.button_section[data_section_f], data_section_f, "BOTTOMLEFT", "TOPLEFT", config.btn_height+config.btn_height*row_btn, config.sub_width*0.2*col_btn, 0.2)
         idx_btn = idx_btn+1
+        row_btn = math.floor(idx_btn/5)
+        col_btn = math.mod(idx_btn, 5)
       end
       button_section_show = true
     else
       for data_section, _ in pairs(data) do
         local data_section_f = data_section
-        window.button_section[data_section_f]:Hide()
+        if window.button_section[data_section_f] then -- window might not exist (Button clicked, new combat engaged -> data_section but no button_section)
+          window.button_section[data_section_f]:Hide()
+        end
       end
       button_section_show = false
     end

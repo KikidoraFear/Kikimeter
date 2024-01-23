@@ -5,7 +5,6 @@
 - use ##SavedVariablesPerCharacter data to store table between sessions
 - add scrolling (mousewheel support)
 - add button to reset specific sections (the one displayed in the bottom meter)
-- display sections as grid rather than row
 - query combat status for each player
 - add button to list only meter users (for better performance): maybe not a good idea because of boss detection (has to parse every log anyway)
 

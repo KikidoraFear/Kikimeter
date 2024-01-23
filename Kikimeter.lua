@@ -43,7 +43,7 @@ config.data_bosses["Molten Core"] = {"Baron Geddon", "Garr", "Gehennas", "Golema
 config.data_bosses["Onyxia's Lair"] = {"Onyxia"}
 config.data_bosses["Ruins of Ahn'Qiraj"] = {"Ayamiss the Hunter", "Buru the Gorger", "General Rajaxx", "Kurinnaxx", "Moam", "Ossirian the Unscarred"}
 config.data_bosses["Zul'Gurub"] = {"High Priestess Jeklik", "High Priest Venoxis", "High Priestess Mar'li", "High Priest Thekal", "High Priestess Arlokk", "Hakkar", "Bloodlord Mandokir", "Jin'do the Hexxer", "Gahz'ranka"}
-config.data_bosses["Emerald Sanctum"] = {"Erennius", "Solnius the Awakener"}
+config.data_bosses["Emerald Sanctum"] = {"Erennius", "Solnius"}
 config.data_bosses["Lower Karazhan Halls"] = {"Master Blacksmith Rolfen", "Brood Queen Araxxna", "Grizikil", "Clawlord Howlfang", "Lord Blackwald II", "Moroes"}
 
 -- config.data_bosses["Teldrassil"] = {"Young Thistle Boar", "Grellkin"}

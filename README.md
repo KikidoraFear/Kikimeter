@@ -9,6 +9,7 @@
 - add button to list only meter users (for better performance): maybe not a good idea because of boss detection (has to parse every log anyway)
 - add DPS and HPS value
 - add a button that turns the buttons black for little receptor
+- check each x seconds if any player is in combat and add to correct section
 
 ## State
 - accuracy of values displayed need further testing

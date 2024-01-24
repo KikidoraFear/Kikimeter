@@ -33,7 +33,8 @@ local config = {
   btn_height = 20, -- size of buttons
   window_text_height = 10, -- added text space in window
   refresh_time = 0.1, -- refresh time in seconds (for updating Bars)
-  data_bosses = {}
+  data_bosses = {},
+  button_design = 0 -- 0..white, 1..black
 }
 config.sub_height = config.bar_height*config.bars_show_act -- height of one table
 config.sub_width = config.bar_width*config.sub_cols + config.sub_spacing*(config.sub_cols-1)
@@ -226,6 +227,28 @@ local function TextLayout(parent, text, align, pos_h, pos_v)
   text:Hide()
 end
 
+local function ButtonDesign(btn)
+  if config.button_design == 0 then
+    btn:SetBackdropColor(1, 1, 1, 1)
+    btn:SetBackdropBorderColor(0, 0, 0, 1)
+    btn:SetScript("OnEnter", function()
+      btn:SetBackdropBorderColor(1, 1, 1, 1)
+    end)
+    btn:SetScript("OnLeave", function()
+      btn:SetBackdropBorderColor(0, 0, 0, 1)
+    end)
+  else
+    btn:SetBackdropColor(0, 0, 0, 1)
+    btn:SetBackdropBorderColor(0, 0, 0, 1)
+    btn:SetScript("OnEnter", function()
+      btn:SetBackdropBorderColor(1, 1, 1, 1)
+    end)
+    btn:SetScript("OnLeave", function()
+      btn:SetBackdropBorderColor(0, 0, 0, 1)
+    end)
+  end
+end
+
 local function ButtonLayout(parent, btn, txt, pos_btn, pos_parent, pos_v, pos_h, width_multiplier)
   btn:ClearAllPoints()
   btn:SetPoint(pos_btn, parent, pos_parent, pos_h, pos_v)
@@ -235,22 +258,7 @@ local function ButtonLayout(parent, btn, txt, pos_btn, pos_parent, pos_v, pos_h,
     edgeFile="Interface\\Tooltips\\UI-Tooltip-Border",
     tile = true, tileSize = 16, edgeSize = 8,
     insets = { left = 2, right = 2, top = 2, bottom = 2}})
-  -- btn:SetBackdropColor(0, 0, 0, 1)
-  -- btn:SetBackdropBorderColor(0, 0, 0, 1)
-  -- btn:SetScript("OnEnter", function()
-  --   btn:SetBackdropBorderColor(1, 1, 1, 1)
-  -- end)
-  -- btn:SetScript("OnLeave", function()
-  --   btn:SetBackdropBorderColor(0, 0, 0, 1)
-  -- end)
-  btn:SetBackdropColor(1, 1, 1, 1)
-  btn:SetBackdropBorderColor(0, 0, 0, 1)
-  btn:SetScript("OnEnter", function()
-    btn:SetBackdropBorderColor(1, 1, 1, 1)
-  end)
-  btn:SetScript("OnLeave", function()
-    btn:SetBackdropBorderColor(0, 0, 0, 1)
-  end)
+  ButtonDesign(btn)
   btn:Show()
   btn.text = btn:CreateFontString("Status", "OVERLAY", "GameFontNormal")
   TextLayout(btn, btn.text, "CENTER", 0, 1.5)
@@ -726,6 +734,29 @@ window:SetScript("OnUpdate", function()
     window.clock = GetTime()
     window.cycle = math.mod(window.cycle + 1, 4)
   end
+end)
+
+-- Receptor's stupid AMG button
+window.button_amg = CreateFrame("Button", nil, window)
+ButtonLayout(window, window.button_amg, "AMG", "TOPRIGHT", "BOTTOMRIGHT", 0, 0, 0.1)
+window.button_amg:SetScript("OnClick", function()
+  if config.button_design == 0 then
+    PlaySoundFile("Interface\\AddOns\\Kikimeter\\SFX_AMG_ON.ogg")
+    config.button_design = 1
+  else
+    PlaySoundFile("Interface\\AddOns\\Kikimeter\\SFX_AMG_OFF.ogg")
+    config.button_design = 0
+  end
+  ButtonDesign(window.button_reset)
+  ButtonDesign(window.button_section)
+  for data_section, _ in pairs(data) do
+    if window.button_section[data_section] then
+      ButtonDesign(window.button_section[data_section])
+    end
+  end
+  ButtonDesign(window.button_max)
+  ButtonDesign(button_hide)
+  ButtonDesign(window.button_amg)
 end)
 
 

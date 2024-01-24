@@ -19,6 +19,9 @@ data[player_section]._timer.time = GetTime() - .ts_start
 dps = ._sum/.time
 Broadcast dps value (not time and sum separate, because sum is calculated locally)
 
+possible performance increase:
+calculate sum and max in cycles, not in each parse
+
 
 ## State
 - accuracy of values displayed need further testing

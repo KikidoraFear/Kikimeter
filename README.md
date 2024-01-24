@@ -20,7 +20,8 @@ dps = ._sum/.time
 Broadcast dps value (not time and sum separate, because sum is calculated locally)
 
 possible performance increase:
-calculate sum and max in cycles, not in each parse
+calculate sum and max in cycles, not in each parse  
+broadcast eheal and oheal in one line
 
 
 ## State

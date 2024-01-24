@@ -11,6 +11,15 @@
 - add a button that turns the buttons black for little receptor
 - check each x seconds if any player is in combat and add to correct section
 
+dps:
+on player_section changed:
+data[player_section]._timer.ts_start = GetTime()
+on parse:
+data[player_section]._timer.time = GetTime() - .ts_start
+dps = ._sum/.time
+Broadcast dps value (not time and sum separate, because sum is calculated locally)
+
+
 ## State
 - accuracy of values displayed need further testing
 - max players tested so far: 7

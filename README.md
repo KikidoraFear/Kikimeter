@@ -7,7 +7,7 @@
 - add button to reset specific sections (the one displayed in the bottom meter)
 - query combat status for each player
 - add button to list only meter users (for better performance): maybe not a good idea because of boss detection (has to parse every log anyway)
-- add DPS and HPS value
+- add accurate DPS and HPS values for Broadcasted values (so far only local sections are timed)
 - check each x seconds if any player is in combat and add to correct section
 
 dps:

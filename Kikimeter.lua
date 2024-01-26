@@ -32,7 +32,7 @@ local config = {
   font_size = 8, -- font size for name and damage numbers
   btn_height = 20, -- size of buttons
   window_text_height = 10, -- added text space in window
-  refresh_time = 0.1, -- refresh time in seconds (for updating Bars)
+  refresh_time = 0.2, -- refresh time in seconds (for updating Bars)
   data_bosses = {},
   button_design = 0 -- 0..white, 1..black
 }
@@ -94,7 +94,12 @@ local function EOHeal(unitIDs_cache, unitIDs, value, target)
   return eheal, oheal
 end
 
-local function AddDataSection(data, data_section, data_kind, player_name, attack, value)
+local function PrepareData(data, data_section, data_kind, player_name, attack, data_timer)
+  -- init tables
+  if not data_timer[data_section] then
+    data_timer[data_section] = 0
+  end
+
   if not data[data_section] then -- data_section does not exist
     data[data_section] = {}
   end
@@ -111,27 +116,54 @@ local function AddDataSection(data, data_section, data_kind, player_name, attack
     data[data_section][data_kind]._players[player_name]._attacks = {}
     data[data_section][data_kind]._players[player_name]._ranking = {}
     data[data_section][data_kind]._players[player_name]._sum = 0
+    data[data_section][data_kind]._players[player_name]._sumps = 0
   end
 
   if not data[data_section][data_kind]._players[player_name]._attacks[attack] then -- if attack for player doesnt exist, init value
     data[data_section][data_kind]._players[player_name]._attacks[attack] = 0
   end
+end
 
+local function FillDataTables(data, data_section, data_kind, player_name, attack, value, time)
+  -- add attack damage
   data[data_section][data_kind]._players[player_name]._attacks[attack] = data[data_section][data_kind]._players[player_name]._attacks[attack] + tonumber(value)
+
+  -- add sum and sum per second
   data[data_section][data_kind]._players[player_name]._sum = data[data_section][data_kind]._players[player_name]._sum + tonumber(value)
+  if time > 1 then
+    data[data_section][data_kind]._players[player_name]._sumps = math.floor(data[data_section][data_kind]._players[player_name]._sum / time)
+  end
+  
+  -- update max value
   if data[data_section][data_kind]._players[player_name]._sum > data[data_section][data_kind]._max then
     data[data_section][data_kind]._max = data[data_section][data_kind]._players[player_name]._sum
   end
 end
 
-local function AddData(data, data_section, data_kind, player_name, attack, value) 
-  -- Insert new data into table
-  AddDataSection(data, data_section, data_kind, player_name, attack, value)
-  AddDataSection(data, "All", data_kind, player_name, attack, value)
+local function AddData(data, data_section, data_kind, player_name, attack, value, data_timer)
+  PrepareData(data, data_section, data_kind, player_name, attack, data_timer)
+  -- calculate time: not working if Trash (AddData) -> NoCombat (no AddData) -> Trash (AddData): time will be  counted over nocombat
+  local time_delta = 0
+  local time_act = GetTime()
+  if data_timer._prev_section == data_section then
+    time_delta = time_act - data_timer._prev_timestamp
+    data_timer._prev_timestamp = time_act
+    data_timer[data_section] = data_timer[data_section] + time_delta
+  else
+    data_timer._prev_section = data_section
+    data_timer._prev_timestamp = time_act
+  end
+
+  FillDataTables(data, data_section, data_kind, player_name, attack, value, data_timer[data_section])
+
+  PrepareData(data, "All", data_kind, player_name, attack, data_timer)
+  FillDataTables(data, "All", data_kind, player_name, attack, value, data_timer[data_section])
   if data_section ~= "NoCombat" then
-    AddDataSection(data, "InCombat", data_kind, player_name, attack, value)
+    PrepareData(data, "InCombat", data_kind, player_name, attack, data_timer)
+    FillDataTables(data, "InCombat", data_kind, player_name, attack, value, data_timer[data_section])
     if data_section ~= "Trash" then
-      AddDataSection(data, "Bosses", data_kind, player_name, attack, value)
+      PrepareData(data, "Bosses", data_kind, player_name, attack, data_timer)
+      FillDataTables(data, "Bosses", data_kind, player_name, attack, value, data_timer[data_section])
     end
   end
 end
@@ -142,13 +174,14 @@ local function UpdateBarsSubKind(data, data_section, data_kind, bars_sub_kind, d
     if (data[data_section] and data[data_section][data_kind] and data[data_section][data_kind]._ranking[rank] and (rank <= config.bars_show_act)) then -- if data for rank is present
       local player_name = data[data_section][data_kind]._ranking[rank]
       local value = data[data_section][data_kind]._players[player_name]._sum
+      local value_ps = data[data_section][data_kind]._players[player_name]._sumps
       local num_attacks = getArLength(data[data_section][data_kind]._players[player_name]._ranking)
       if data_users[player_name] then -- if player uses Kikimeter
         bars_sub_kind[rank].text_left:SetText("|cFFFFDF00"..rank.."."..player_name.."|r") -- |cAARRGGBBtext|r Alpha Red Green Blue
-        bars_sub_kind[rank].text_right:SetText("|cFFFFDF00"..data[data_section][data_kind]._players[player_name]._sum.."|r")
+        bars_sub_kind[rank].text_right:SetText("|cFFFFDF00"..value.." ("..value_ps..")".."|r")
       else
         bars_sub_kind[rank].text_left:SetText(rank.."."..player_name)
-        bars_sub_kind[rank].text_right:SetText(data[data_section][data_kind]._players[player_name]._sum)
+        bars_sub_kind[rank].text_right:SetText(value.." ("..value_ps..")")
       end
       bars_sub_kind[rank].text_left:Show()
       bars_sub_kind[rank].text_right:Show()
@@ -180,6 +213,12 @@ local data = {}
 -- data[data_section][data_kind]._players[name]._attacks[attack] = value
 -- data[data_section][data_kind]._players[name]._ranking[rank] = attack
 -- data[data_section][data_kind]._players[name]._sum = value
+
+local data_timer = {}
+data_timer._prev_section = ""
+-- data_timer._section_prev = data_section
+-- data_timer[data_section]._timestamp_prev = timestamp
+-- data_timer[data_section]._time = value
 
 local data_filter = {"All", "Bosses"}
 -- data_filter[data_sub] = section
@@ -452,11 +491,13 @@ combat_status:RegisterEvent("PLAYER_REGEN_DISABLED")
 combat_status:RegisterEvent("PLAYER_REGEN_ENABLED")
 combat_status:SetScript("OnEvent", function()
   if UnitAffectingCombat("player") or UnitAffectingCombat("pet") then
+    data_timer._prev_section = ""
     player_section = "Trash"
     window.text_top_left:SetText(player_zone..": Trash")
     data_filter[2] = "Trash"
     window.text_top_right:SetText("Bottom: Trash")
   else
+    data_timer._prev_section = ""
     player_section = "NoCombat"
     window.text_top_left:SetText(player_zone..": NoCombat")
   end
@@ -591,6 +632,7 @@ parser:SetScript("OnEvent", function()
           if (player_section == "Trash") and (config.data_bosses[player_zone]) then -- only swap to boss if in combat (=Trash), also helps if multiple bosses are fought at the same time (only lists first boss)
             for _, boss in ipairs(config.data_bosses[player_zone]) do
               if (boss == source) or (boss == target) then
+                data_timer._prev_section = ""
                 player_section = boss
                 window.text_top_left:SetText(player_zone..": "..boss)
                 data_filter[2] = boss
@@ -620,10 +662,10 @@ parser:SetScript("OnEvent", function()
           elseif unitIDs_cache[source] and (not data_users[source]) then -- source in raid, but not a Kikimeter user -> AddData
             if combatlog_pattern.kind == "heal" then
               local eheal, oheal = EOHeal(unitIDs_cache, unitIDs, value, target)
-              AddData(data, player_section, "eheal", source, attack, eheal)
-              AddData(data, player_section, "oheal", source, attack, oheal)
+              AddData(data, player_section, "eheal", source, attack, eheal, data_timer)
+              AddData(data, player_section, "oheal", source, attack, oheal, data_timer)
             else
-              AddData(data, player_section, "dmg", source, attack, value)
+              AddData(data, player_section, "dmg", source, attack, value, data_timer)
             end
           end
           return -- if pattern found, abort loop
@@ -675,7 +717,7 @@ window:SetScript("OnEvent", function()
   -- AddData(data, data_section, data_kind, player_name, attack, value) 
   for section, kind, attack in string.gfind(arg1, pattern) do
     data_users[arg4] = true
-    AddData(data, section, kind, arg4, attack, arg2)
+    AddData(data, section, kind, arg4, attack, arg2, data_timer)
   end
 end)
 
@@ -683,14 +725,23 @@ end)
 -- # REFRESH BARS #
 -- ################
 
-local function UpdateSubKind(data, data_section, data_kind, bars_sub_kind)
-  if data[data_section] and data[data_section][data_kind] then
-    data[data_section][data_kind]._ranking = GetRank(data[data_section][data_kind]._players) -- update rankings
-    for _, player_name in pairs(data[data_section][data_kind]._ranking) do
-      data[data_section][data_kind]._players[player_name]._ranking = GetRankAttack(data[data_section][data_kind]._players[player_name]._attacks)
+local function UpdateSubKind(data, data_kind)
+  for idx_sub=1,config.sub_rows do
+    local data_section = data_filter[idx_sub]
+    if data[data_section] and data[data_section][data_kind] then
+      data[data_section][data_kind]._ranking = GetRank(data[data_section][data_kind]._players) -- update rankings
+      for _, player_name in pairs(data[data_section][data_kind]._ranking) do
+        data[data_section][data_kind]._players[player_name]._ranking = GetRankAttack(data[data_section][data_kind]._players[player_name]._attacks)
+      end
+    end
+    if data_kind=="dmg" then
+      UpdateBarsSubKind(data, data_section, data_kind, window.sub[idx_sub].dmg.bars, data_users)
+    elseif data_kind=="eheal" then
+      UpdateBarsSubKind(data, data_section, data_kind, window.sub[idx_sub].eheal.bars, data_users)
+    elseif data_kind=="oheal" then
+      UpdateBarsSubKind(data, data_section, data_kind, window.sub[idx_sub].oheal.bars, data_users)
     end
   end
-  UpdateBarsSubKind(data, data_section, data_kind, bars_sub_kind, data_users)
 end
 
 -- for better performance, call UpdateBars only each config.refresh_time seconds
@@ -700,28 +751,13 @@ window:SetScript("OnUpdate", function()
   if not window.cycle then window.cycle = 0 end
 
   if GetTime() > window.clock + config.refresh_time then
-    for idx_sub=1,config.sub_rows do
-      local data_section = data_filter[idx_sub]
-      -- if data[data_section] then
-        if window.cycle == 0 then
-          -- if data[data_section].dmg then
-            UpdateSubKind(data, data_section, "dmg", window.sub[idx_sub].dmg.bars)
-          -- end   
-        elseif window.cycle == 1 then
-          -- if data[data_section].eheal then
-            UpdateSubKind(data, data_section, "eheal", window.sub[idx_sub].eheal.bars)
-            -- UpdateSubKind(data[data_section].eheal, window.sub[idx_sub].eheal.bars) 
-          -- end
-        elseif window.cycle == 2 then
-          -- if data[data_section].oheal then
-            UpdateSubKind(data, data_section, "oheal", window.sub[idx_sub].oheal.bars)
-            -- UpdateSubKind(data[data_section].oheal, window.sub[idx_sub].oheal.bars) 
-          -- end
-        end
-      -- end
-    end
-    if window.cycle == 3 then
-      -- SendAddonMessage("KM"..km_id.."_user_nil", 0, "RAID") -- send who is using Kikimeter (player_name is sender)
+    if window.cycle == 0 then -- update dmg bars
+        UpdateSubKind(data, "dmg")
+    elseif window.cycle == 1 then -- update eheal bars
+        UpdateSubKind(data, "eheal")
+    elseif window.cycle == 2 then -- update oheal bars
+        UpdateSubKind(data, "oheal")
+    elseif window.cycle == 3 then -- update unitID_cache and player_zone
       for _,unitID in pairs(unitIDs) do -- update unitIDs_cache
         local name = UnitName(unitID)
         if name then

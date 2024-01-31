@@ -9,6 +9,7 @@
 - add button to list only meter users (for better performance): maybe not a good idea because of boss detection (has to parse every log anyway)
 - add accurate DPS and HPS values for Broadcasted values (so far only local sections are timed)
 - check each x seconds if any player is in combat and add to correct section
+- maybe add something like threat per second and remove overheal
 
 dps:
 on player_section changed:

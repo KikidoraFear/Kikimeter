@@ -259,13 +259,14 @@ local function UpdateBarsSubKind(data, data_section, data_kind, bars_sub_kind, d
         bars_sub_kind[rank].text_left:SetText("|cFFFFDF00"..rank.."."..player_name.."|r") -- |cAARRGGBBtext|r Alpha Red Green Blue
         bars_sub_kind[rank].text_right:SetText("|cFFFFDF00"..value.."|r")
         bars_sub_kind[rank].text_right_dps:SetText("|cFFFFDF00"..value_ps.."|r")
+        bars_sub_kind[rank].text_right_dps:Show()
       else
         bars_sub_kind[rank].text_left:SetText(rank.."."..player_name)
         bars_sub_kind[rank].text_right:SetText(value)
+        bars_sub_kind[rank].text_right_dps:Hide()
       end
       bars_sub_kind[rank].text_left:Show()
       bars_sub_kind[rank].text_right:Show()
-      bars_sub_kind[rank].text_right_dps:Show()
       bars_sub_kind[rank]:SetValue(value/data[data_section][data_kind]._max*100)
       bars_sub_kind[rank]:Show()
       bars_sub_kind[rank]:SetScript("OnEnter", function()

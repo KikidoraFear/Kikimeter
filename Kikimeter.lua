@@ -466,6 +466,9 @@ local function WindowLayout(window)
     for data_section,_ in pairs(data) do
       data[data_section] = nil
     end
+    for player_name,_ in pairs(data_timer) do
+      data_timer[player_name] = nil
+    end
   end)
 
   window.button_section = CreateFrame("Button", nil, window)

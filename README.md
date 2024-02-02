@@ -5,27 +5,15 @@
 - use ##SavedVariablesPerCharacter data to store table between sessions
 - add scrolling (mousewheel support)
 - add button to reset specific sections (the one displayed in the bottom meter)
-- query combat status for each player
 - add button to list only meter users (for better performance): maybe not a good idea because of boss detection (has to parse every log anyway)
-- add accurate DPS and HPS values for Broadcasted values (so far only local sections are timed)
-- check each x seconds if any player is in combat and add to correct section
 - maybe add something like threat per second and remove overheal
-
-dps:
-on player_section changed:
-data[player_section]._timer.ts_start = GetTime()
-on parse:
-data[player_section]._timer.time = GetTime() - .ts_start
-dps = ._sum/.time
-Broadcast dps value (not time and sum separate, because sum is calculated locally)
+- add new table with consumes used, idk how to properly show that, THINK HARD!
 
 possible performance increase:
-calculate sum and max in cycles, not in each parse  
 broadcast eheal and oheal in one line
 
-
 ## State
-- accuracy of values displayed need further testing
+- accuracy of values displayed needs further testing
 - max players tested so far: 7
 
 ## Description

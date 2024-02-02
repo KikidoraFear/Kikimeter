@@ -33,7 +33,7 @@ local config = {
   font_size_dps = 5.5, -- font size for name and damage numbers
   btn_height = 20, -- size of buttons
   window_text_height = 10, -- added text space in window
-  refresh_time = 0.2, -- refresh time in seconds (for updating Bars)
+  refresh_time = 0.1, -- refresh time in seconds (for updating Bars)
   data_bosses = {},
   button_design = 0 -- 0..white, 1..black
 }
@@ -47,6 +47,7 @@ config.data_bosses["Ruins of Ahn'Qiraj"] = {"Ayamiss the Hunter", "Buru the Gorg
 config.data_bosses["Zul'Gurub"] = {"High Priestess Jeklik", "High Priest Venoxis", "High Priestess Mar'li", "High Priest Thekal", "High Priestess Arlokk", "Hakkar", "Bloodlord Mandokir", "Jin'do the Hexxer", "Gahz'ranka"}
 config.data_bosses["Emerald Sanctum"] = {"Erennius", "Solnius"}
 config.data_bosses["Lower Karazhan Halls"] = {"Master Blacksmith Rolfen", "Brood Queen Araxxna", "Grizikil", "Clawlord Howlfang", "Lord Blackwald II", "Moroes"}
+config.data_bosses["Scholomance"] = {"Blood Steward of Kirtonos", "Kirtonos the Herald", "Lord Blackwood", "Jandice Barov", "Rattlegore", "Death Knight Darkreaver", "Marduk Blackpool", "Vectus", "Ras Frostwhisper", "Kormok", "Doctor Theolen Krastinov", "Lorekeeper Polkelt", "Instructor Malicia", "Lady Illucia Barov", "Lord Alexei Barov", "The Ravenian", "Darkmaster Gandling"}
 
 -- config.data_bosses["Teldrassil"] = {"Young Thistle Boar", "Grellkin"}
 
@@ -83,6 +84,7 @@ local function BroadcastValue(section, kind, attack, value)
   SendAddonMessage("KM"..km_id.."_"..section.."_"..kind.."_"..attack, value , "RAID") -- "KM4_ouro_dmg_hit", "10", "RAID"
 end
 
+-- broadcast change of section (for data_timer)
 local function BroadcastSectionChange(player_zone, player_section, data_filter, window)
   window.text_top_left:SetText(player_zone..": "..player_section)
   if player_section ~= "NoCombat" then
@@ -90,6 +92,14 @@ local function BroadcastSectionChange(player_zone, player_section, data_filter, 
     window.text_top_right:SetText("Bottom: "..player_section)
   end
   SendAddonMessage("KM"..km_id.."_"..player_section.."_SECTIONCHANGE_DETECTED", player_section , "RAID")
+end
+
+-- converts time in seconds to h:m:s string
+local function TimeToString(time)
+  local time_h = math.floor(time/3600)
+  local time_m = math.floor((time-time_h*3600)/60)
+  local time_s = math.floor(time-time_h*3600-time_m*60)
+  return time_h..":"..time_m..":"..time_s
 end
 
 -- calculate effective heal from total heal and target health
@@ -138,30 +148,22 @@ local function AddData(data, data_section, data_kind, player_name, attack, value
   FillDataTables(data, data_section, data_kind, player_name, attack, value)
 end
 
-local function OverwriteDataTables(data, data_section, data_kind, player_name, attack, value)
-  data[data_section][data_kind]._players[player_name]._attacks[attack] = tonumber(value)
-end
-
-local function OverwriteData(data, data_section, data_kind, player_name, attack, value)
-  PrepareData(data, data_section, data_kind, player_name, attack)
-  OverwriteDataTables(data, data_section, data_kind, player_name, attack, value)
-end
-
 local function PrepareDataTimer(data_timer, player_name, data_section)
   if not data_timer[player_name] then
     data_timer[player_name] = {}
     data_timer[player_name]._prev_timestamp = 0
     data_timer[player_name]._prev_section = ""
+    data_timer[player_name]._sections = {}
   end
-  if not data_timer[player_name][data_section] then
-    data_timer[player_name][data_section] = 0
+  if not data_timer[player_name]._sections[data_section] then
+    data_timer[player_name]._sections[data_section] = 0
   end
 end
 
 local function FillDataTimeTable(data_timer, player_name, data_section)
   local time_act = GetTime()
   if data_timer[player_name]._prev_section == data_section then
-    data_timer[player_name][data_section] = data_timer[player_name][data_section] + time_act - data_timer[player_name]._prev_timestamp
+    data_timer[player_name]._sections[data_section] = data_timer[player_name]._sections[data_section] + time_act - data_timer[player_name]._prev_timestamp
   else
     data_timer[player_name]._prev_section = data_section
   end
@@ -174,7 +176,7 @@ local function AddDataTimer(data_timer, player_name, data_section)
 end
 
 local function OverwriteDataTimeTable(data_timer, player_name, data_section, time)
-  data_timer[player_name][data_section] = time
+  data_timer[player_name]._sections[data_section] = time
 end
 
 local function OverwriteDataTimer(data_timer, player_name, data_section, time)
@@ -188,13 +190,13 @@ local function GenSectionData(data, data_timer)
     local time_all = 0
     local time_nocombat = 0
     local time_bosses = 0
-    for data_section,_ in pairs(data_timer[player_name]) do
-      if (data_section ~= "All") and (data_section ~= "InCombat") and (data_section ~= "Bosses") and (data_section ~= "_prev_section") and (data_section ~= "_prev_timestamp")and (data_section ~= "") then
-        time_all = time_all + data_timer[player_name][data_section]
+    for data_section,_ in pairs(data_timer[player_name]._sections) do
+      if (data_section ~= "All") and (data_section ~= "InCombat") and (data_section ~= "Bosses") and (data_section ~= "") then
+        time_all = time_all + data_timer[player_name]._sections[data_section]
         if data_section ~= "NoCombat" then
-          time_nocombat = time_nocombat + data_timer[player_name][data_section]
+          time_nocombat = time_nocombat + data_timer[player_name]._sections[data_section]
           if data_section ~= "Trash" then
-            time_bosses = time_bosses + data_timer[player_name][data_section]
+            time_bosses = time_bosses + data_timer[player_name]._sections[data_section]
           end
         end
       end
@@ -204,17 +206,22 @@ local function GenSectionData(data, data_timer)
     OverwriteDataTimer(data_timer, player_name, "Bosses", time_bosses)
   end
   -- generate data table
-  for data_section,_ in pairs(data) do
-    if (data_section ~= "All") and (data_section ~= "InCombat") and (data_section ~= "Bosses") then
-      for data_kind,_ in pairs(data[data_section]) do
-        for player_name,_ in data[data_section][data_kind]._players do
-          for attack,_ in data[data_section][data_kind]._players[player_name]._attacks do
-            OverwriteData(data, "All", data_kind, player_name, attack, data[data_section][data_kind]._players[player_name]._attacks[attack])
-            if data_section ~= "NoCombat" then
-              OverwriteData(data, "InCombat", data_kind, player_name, attack, data[data_section][data_kind]._players[player_name]._attacks[attack])
-              if data_section ~= "Trash" then
-                OverwriteData(data, "Bosses", data_kind, player_name, attack, data[data_section][data_kind]._players[player_name]._attacks[attack])
-              end
+  data["All"] = nil
+  data["InCombat"] = nil
+  data["Bosses"] = nil
+  local data_sections = {}
+  for key, _ in pairs(data) do
+    table.insert(data_sections, key) -- creates an array with data_sections = {"Ouro", "Trash",...}, probably safer since data_sections are added to data table inside loop
+  end
+  for _,data_section in ipairs(data_sections) do
+    for data_kind,_ in pairs(data[data_section]) do
+      for player_name,_ in data[data_section][data_kind]._players do
+        for attack,_ in data[data_section][data_kind]._players[player_name]._attacks do
+          AddData(data, "All", data_kind, player_name, attack, data[data_section][data_kind]._players[player_name]._attacks[attack])
+          if data_section ~= "NoCombat" then
+            AddData(data, "InCombat", data_kind, player_name, attack, data[data_section][data_kind]._players[player_name]._attacks[attack])
+            if data_section ~= "Trash" then
+              AddData(data, "Bosses", data_kind, player_name, attack, data[data_section][data_kind]._players[player_name]._attacks[attack])
             end
           end
         end
@@ -224,7 +231,7 @@ local function GenSectionData(data, data_timer)
 end
 
 local function ProcessData(data)
-  -- calculate sum and max each x second, only collect attacks with parser (PostProcessData function)
+  -- calculate sum and max for each kind, section and player in data table
   local attack_sum = 0
   for data_section,_ in pairs(data) do
     for data_kind,_ in pairs(data[data_section]) do
@@ -253,8 +260,8 @@ local function UpdateBarsSubKind(data, data_section, data_kind, bars_sub_kind, d
       local num_attacks = getArLength(data[data_section][data_kind]._players[player_name]._ranking)
       if data_timer[player_name] then -- if player uses Kikimeter
         local value_ps = 0
-        if data_timer[player_name][data_section] > 1 then
-          value_ps = math.floor(data[data_section][data_kind]._players[player_name]._sum/data_timer[player_name][data_section])
+        if data_timer[player_name]._sections[data_section] > 1 then
+          value_ps = math.floor(data[data_section][data_kind]._players[player_name]._sum/data_timer[player_name]._sections[data_section])
         end
         bars_sub_kind[rank].text_left:SetText("|cFFFFDF00"..rank.."."..player_name.."|r") -- |cAARRGGBBtext|r Alpha Red Green Blue
         bars_sub_kind[rank].text_right:SetText("|cFFFFDF00"..value.."|r")
@@ -792,7 +799,7 @@ window:SetScript("OnEvent", function()
   -- AddData(data, data_section, data_kind, player_name, attack, value) 
   for data_section, data_kind, attack in string.gfind(arg1, pattern) do
     if data_kind == "SECTIONCHANGE" then
-      AddDataTimer(data_timer, arg4, "") -- create placeholder section, proper section change happens with first attack detection
+      AddDataTimer(data_timer, arg4, "") -- create placeholder section, timer init happens at first attack detection (which required change to a new data_section)
     else
       AddDataTimer(data_timer, arg4, data_section)
       AddData(data, data_section, data_kind, arg4, attack, arg2)
@@ -847,6 +854,14 @@ window:SetScript("OnUpdate", function()
     elseif window.cycle == 4 then
       GenSectionData(data, data_timer) -- generate special data sections (e.g. "All", "Bosses", ...)
       ProcessData(data) -- Process data (calculate sum and max)
+      -- show time in Section Text
+      local player_name = UnitName("player")
+      if data_timer[player_name] and data_timer[player_name]._sections[data_filter[1]] then
+        window.text_top_center:SetText("Top: "..data_filter[1].." "..TimeToString(data_timer[player_name]._sections[data_filter[1]]))
+      end
+      if data_timer[player_name] and data_timer[player_name]._sections[data_filter[2]] then
+        window.text_top_right:SetText("Bottom: "..data_filter[2].." "..TimeToString(data_timer[player_name]._sections[data_filter[2]]))
+      end
     end
 
     window.clock = GetTime()
@@ -882,27 +897,54 @@ end)
 -- # TESTDATA #
 -- ############
 
--- local number_test_players = 40
+-- local number_sections = 10
+-- local number_players = 40
+-- local number_attacks = 20
+-- local value_max = 5000
+-- local refresh_rate = 0.01
+-- local refresh_rate_section = 2
 
--- for number_player = 1,number_test_players do
---   unitIDs_cache["Player"..number_player] = true
+-- local section_array = {}
+-- for section_idx = 1,number_sections do
+--   section_array[section_idx] = "Boss"..section_idx
 -- end
+
+-- local player_array = {}
+-- for player_idx = 1,number_players do
+--   player_array[player_idx] = "Player"..player_idx
+-- end
+
+-- local attack_array = {}
+-- for attack_idx = 1,number_attacks do
+--   attack_array[attack_idx] = "Hit"..attack_idx
+-- end
+
+-- local kind_array = {"dmg", "eheal", "oheal"}
+-- local prev_section = ""
+-- local test_section = section_array[1]
 
 -- local test_sender = CreateFrame("Frame")
 -- test_sender:SetScript("OnUpdate", function()
 --   if not test_sender.clock then test_sender.clock = GetTime() end
---   if GetTime() >= test_sender.clock + 0.1 then
-
---     for number_player = 1,number_test_players do
---       -- AddData(data, section, kind, arg4, attack, arg2)
---       AddData(data, "Trash", "dmg", "Player"..number_player, "Hit", math.random(number_player))
---       AddData(data, "Trash", "eheal", "Player"..number_player, "Hit", math.random(number_player))
---       AddData(data, "Trash", "oheal", "Player"..number_player, "Hit", math.random(number_player))
-
---       AddData(data, "Ouro", "dmg", "Player"..number_player, "Hit", math.random(number_player))
---       AddData(data, "Ouro", "eheal", "Player"..number_player, "Hit", math.random(number_player))
---       AddData(data, "Ouro", "oheal", "Player"..number_player, "Hit", math.random(number_player))
+--   if not test_sender.clock_section then test_sender.clock_section = GetTime() end
+--     if GetTime() >= test_sender.clock + refresh_rate then
+--       local player = player_array[math.random(number_players)]
+--       local kind = kind_array[math.random(3)]
+--       local attack = attack_array[math.random(number_attacks)]
+--       local value = math.random(value_max)
+      
+--       -- print("Test AddData: "..test_section..player..kind..attack..value)
+--       AddData(data, test_section, kind, player, attack, value)
+--       BroadcastValue(test_section, kind, attack, math.floor(value/number_players))
+--       test_sender.clock = GetTime()
 --     end
---     test_sender.clock = GetTime()
---   end
+--     if GetTime() >= test_sender.clock_section + refresh_rate_section then
+--       test_section = section_array[math.random(number_sections)]
+--       if prev_section ~= test_section then
+--         print("Test SectionChange: "..prev_section.."->"..test_section)
+--         BroadcastSectionChange("Test-Zone", test_section, data_filter, window)
+--       end
+--       prev_section = test_section
+--       test_sender.clock_section = GetTime()
+--     end
 -- end)

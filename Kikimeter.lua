@@ -11,6 +11,9 @@ end
 -- Infos:
 --   Global API Strings: https://github.com/tekkub/wow-ui-source/blob/1.12.1/FrameXML/GlobalStrings.lua
 
+-- Threat:
+--  https://wowwiki-archive.fandom.com/wiki/API_UnitGUID
+
 -- ##############
 -- # PARAMETERS #
 -- ##############
@@ -41,7 +44,7 @@ config.sub_height = config.bar_height*config.bars_show_act -- height of one tabl
 config.sub_width = config.bar_width*config.sub_cols + config.sub_spacing*(config.sub_cols-1)
 config.data_bosses["Ahn'Qiraj"] = {"Arygos", "Battleguard Sartura", "C'Thun", "Emperor Vek'lor", "Emperor Vek'nilash", "Eye of C'Thun", "Fankriss the Unyielding", "Lord Kri", "Merithra of the Dream", "Ouro", "Princess Huhuran", "Princess Yauj", "The Master's Eye", "The Prophet Skeram", "Vem", "Viscidus"}
 config.data_bosses["Blackwing Lair"] = {"Broodlord Lashlayer", "Chromaggus", "Ebonroc", "Firemaw", "Flamegor", "Lord Victor Nefarius", "Razorgore the Untamed", "Vaelastrasz the Corrupt"}
-config.data_bosses["Molten Core"] = {"Baron Geddon", "Garr", "Gehennas", "Golemagg the Incinerator", "Lucifron", "Magmadar", "Shazzrah", "Sulfuron Harbinger"}
+config.data_bosses["Molten Core"] = {"Baron Geddon", "Garr", "Gehennas", "Golemagg the Incinerator", "Lucifron", "Magmadar", "Shazzrah", "Sulfuron Harbinger", "Majordomo Executus", "Ragnaros"}
 config.data_bosses["Onyxia's Lair"] = {"Onyxia"}
 config.data_bosses["Ruins of Ahn'Qiraj"] = {"Ayamiss the Hunter", "Buru the Gorger", "General Rajaxx", "Kurinnaxx", "Moam", "Ossirian the Unscarred"}
 config.data_bosses["Zul'Gurub"] = {"High Priestess Jeklik", "High Priest Venoxis", "High Priestess Mar'li", "High Priest Thekal", "High Priestess Arlokk", "Hakkar", "Bloodlord Mandokir", "Jin'do the Hexxer", "Gahz'ranka"}
@@ -260,7 +263,7 @@ local function UpdateBarsSubKind(data, data_section, data_kind, bars_sub_kind, d
       local num_attacks = getArLength(data[data_section][data_kind]._players[player_name]._ranking)
       if data_timer[player_name] then -- if player uses Kikimeter
         local value_ps = 0
-        if data_timer[player_name]._sections[data_section] > 1 then
+        if data_timer[player_name]._sections[data_section] and data_timer[player_name]._sections[data_section] > 1 then
           value_ps = math.floor(data[data_section][data_kind]._players[player_name]._sum/data_timer[player_name]._sections[data_section])
         end
         bars_sub_kind[rank].text_left:SetText("|cFFFFDF00"..rank.."."..player_name.."|r") -- |cAARRGGBBtext|r Alpha Red Green Blue
@@ -799,7 +802,8 @@ window:SetScript("OnEvent", function()
   local pattern = "KM"..km_id.."_(.+)".."_(.+)".."_(.+)"
   -- player_name = arg4
   -- value = arg2
-  -- AddData(data, data_section, data_kind, player_name, attack, value) 
+  -- AddData(data, data_section, data_kind, player_name, attack, value)
+  -- print(arg1..arg2..arg3..arg4)
   for data_section, data_kind, attack in string.gfind(arg1, pattern) do
     if data_kind == "SECTIONCHANGE" then
       AddDataTimer(data_timer, arg4, "") -- create placeholder section, timer init happens at first attack detection (which required change to a new data_section)
@@ -838,14 +842,15 @@ end
 window:SetScript("OnUpdate", function()
   if not window.clock then window.clock = GetTime() end
   if not window.cycle then window.cycle = 0 end
+  
 
   if GetTime() > window.clock + config.refresh_time then
     if window.cycle == 0 then -- update dmg bars
-        UpdateSubKind(data, "dmg", data_timer)
+      UpdateSubKind(data, "dmg", data_timer)
     elseif window.cycle == 1 then -- update eheal bars
-        UpdateSubKind(data, "eheal", data_timer)
+      UpdateSubKind(data, "eheal", data_timer)
     elseif window.cycle == 2 then -- update oheal bars
-        UpdateSubKind(data, "oheal", data_timer)
+      UpdateSubKind(data, "oheal", data_timer)
     elseif window.cycle == 3 then -- update unitID_cache and player_zone
       for _,unitID in pairs(unitIDs) do -- update unitIDs_cache
         local name = UnitName(unitID)

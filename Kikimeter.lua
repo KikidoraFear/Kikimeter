@@ -707,7 +707,7 @@ parser:SetScript("OnEvent", function()
     for _,combatlog_pattern in ipairs(combatlog_patterns) do
       for par_1, par_2, par_3, par_4, par_5 in string.gfind(arg1, combatlog_pattern.string) do
         pars = {par_1, par_2, par_3, par_4, par_5}
-        local source = RemoveSpaces(pars[combatlog_pattern.order[1]]) -- advancedcombatlog compatibility: adds space after name -> remove spaces
+        local source = pars[combatlog_pattern.order[1]]
         local attack = pars[combatlog_pattern.order[2]]
         local target = pars[combatlog_pattern.order[3]]
         local value = pars[combatlog_pattern.order[4]]
@@ -729,6 +729,7 @@ parser:SetScript("OnEvent", function()
         if not school then
           school = "physical"
         end
+        source = RemoveSpaces(source) -- advancedcombatlog compatibility: adds space after name -> remove spaces
 
         -- Check if boss fight
         if (player_section == "Trash") and (config.data_bosses[player_zone]) then -- only swap to boss if in combat (=Trash), also helps if multiple bosses are fought at the same time (only lists first boss)

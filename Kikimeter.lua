@@ -42,15 +42,22 @@ local config = {
 }
 config.sub_height = config.bar_height*config.bars_show_act -- height of one table
 config.sub_width = config.bar_width*config.sub_cols + config.sub_spacing*(config.sub_cols-1)
-config.data_bosses["Ahn'Qiraj"] = {"Arygos", "Battleguard Sartura", "C'Thun", "Emperor Vek'lor", "Emperor Vek'nilash", "Eye of C'Thun", "Fankriss the Unyielding", "Lord Kri", "Merithra of the Dream", "Ouro", "Princess Huhuran", "Princess Yauj", "The Master's Eye", "The Prophet Skeram", "Vem", "Viscidus"}
+config.data_bosses["Ahn'Qiraj"] = {"Arygos", "Battleguard Sartura", "C'Thun", "Emperor Vek'lor", "Emperor Vek'nilash", "Eye of C'Thun", "Fankriss the Unyielding", "Lord Kri",
+                                    "Merithra of the Dream", "Ouro", "Princess Huhuran", "Princess Yauj", "The Master's Eye", "The Prophet Skeram", "Vem", "Viscidus"}
 config.data_bosses["Blackwing Lair"] = {"Broodlord Lashlayer", "Chromaggus", "Ebonroc", "Firemaw", "Flamegor", "Lord Victor Nefarius", "Razorgore the Untamed", "Vaelastrasz the Corrupt"}
 config.data_bosses["Molten Core"] = {"Baron Geddon", "Garr", "Gehennas", "Golemagg the Incinerator", "Lucifron", "Magmadar", "Shazzrah", "Sulfuron Harbinger", "Majordomo Executus", "Ragnaros"}
 config.data_bosses["Onyxia's Lair"] = {"Onyxia"}
 config.data_bosses["Ruins of Ahn'Qiraj"] = {"Ayamiss the Hunter", "Buru the Gorger", "General Rajaxx", "Kurinnaxx", "Moam", "Ossirian the Unscarred"}
-config.data_bosses["Zul'Gurub"] = {"High Priestess Jeklik", "High Priest Venoxis", "High Priestess Mar'li", "High Priest Thekal", "High Priestess Arlokk", "Hakkar", "Bloodlord Mandokir", "Jin'do the Hexxer", "Gahz'ranka"}
+config.data_bosses["Zul'Gurub"] = {"High Priestess Jeklik", "High Priest Venoxis", "High Priestess Mar'li", "High Priest Thekal", "High Priestess Arlokk",
+                                  "Hakkar", "Bloodlord Mandokir", "Jin'do the Hexxer", "Gahz'ranka"}
 config.data_bosses["Emerald Sanctum"] = {"Erennius", "Solnius"}
 config.data_bosses["Lower Karazhan Halls"] = {"Master Blacksmith Rolfen", "Brood Queen Araxxna", "Grizikil", "Clawlord Howlfang", "Lord Blackwald II", "Moroes"}
-config.data_bosses["Scholomance"] = {"Blood Steward of Kirtonos", "Kirtonos the Herald", "Lord Blackwood", "Jandice Barov", "Rattlegore", "Death Knight Darkreaver", "Marduk Blackpool", "Vectus", "Ras Frostwhisper", "Kormok", "Doctor Theolen Krastinov", "Lorekeeper Polkelt", "Instructor Malicia", "Lady Illucia Barov", "Lord Alexei Barov", "The Ravenian", "Darkmaster Gandling"}
+config.data_bosses["Scholomance"] = {"Blood Steward of Kirtonos", "Kirtonos the Herald", "Lord Blackwood", "Jandice Barov", "Rattlegore", "Death Knight Darkreaver",
+                                      "Marduk Blackpool", "Vectus", "Ras Frostwhisper", "Kormok", "Doctor Theolen Krastinov", "Lorekeeper Polkelt", "Instructor Malicia",
+                                      "Lady Illucia Barov", "Lord Alexei Barov", "The Ravenian", "Darkmaster Gandling"}
+config.data_bosses["Naxxramas"] = {"Anub'Rekhan", "Grand Widow Faerlina", "Maexxna", "Patchwerk", "Grobbulus", "Gluth", "Thaddius", "Noth the Plaguebringer", "Heigan the Unclean", "Loatheb",
+                                  "Instructor Razuvious", "Gothik the Harvester", "Lady Blaumeux", "Thane Korth'azz", "Highlord Mograine", "Sir Zeliek", "Sapphiron", "Kel'Thuzad"}
+
 
 -- config.data_bosses["Teldrassil"] = {"Young Thistle Boar", "Grellkin"}
 
@@ -65,6 +72,10 @@ local function getArLength(arr) -- get array length
   else
     return 0
   end
+end
+
+local function RemoveSpaces(str)
+  return string.gsub(str, "%s+", "")
 end
 
 -- get unitID from name with cache table for better performance
@@ -696,7 +707,7 @@ parser:SetScript("OnEvent", function()
     for _,combatlog_pattern in ipairs(combatlog_patterns) do
       for par_1, par_2, par_3, par_4, par_5 in string.gfind(arg1, combatlog_pattern.string) do
         pars = {par_1, par_2, par_3, par_4, par_5}
-        local source = pars[combatlog_pattern.order[1]]
+        local source = RemoveSpaces(pars[combatlog_pattern.order[1]]) -- advancedcombatlog compatibility: adds space after name -> remove spaces
         local attack = pars[combatlog_pattern.order[2]]
         local target = pars[combatlog_pattern.order[3]]
         local value = pars[combatlog_pattern.order[4]]
@@ -718,7 +729,7 @@ parser:SetScript("OnEvent", function()
         if not school then
           school = "physical"
         end
-        
+
         -- Check if boss fight
         if (player_section == "Trash") and (config.data_bosses[player_zone]) then -- only swap to boss if in combat (=Trash), also helps if multiple bosses are fought at the same time (only lists first boss)
           for _, boss in ipairs(config.data_bosses[player_zone]) do
@@ -729,7 +740,6 @@ parser:SetScript("OnEvent", function()
             end
           end
         end
-
         if source == player_name then -- if source = player_name -> BroadcastValue
           if combatlog_pattern.kind == "heal" then
             local eheal, oheal = EOHeal(unitIDs_cache, unitIDs, value, target)

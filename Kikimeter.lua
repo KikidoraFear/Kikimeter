@@ -912,6 +912,31 @@ window.button_amg:SetScript("OnClick", function()
 end)
 
 
+-- ###############
+-- # EXPORT DATA #
+-- ###############
+
+-- add ## SavedVariables: kikimeter_data to .toc file
+local data_exporter = CreateFrame("Frame", nil, UIParent)
+data_exporter:RegisterEvent("PLAYER_LOGOUT")
+data_exporter:SetScript("OnEvent", function()
+  -- for data[data_section][data_kind]._players[player_name]._attacks
+  kikimeter_data = "" -- store local data to global kikimeter_data which will be saved to WTF\Account\ACCOUNTNAME\SavedVariables.lua
+  for data_section,_ in pairs(data) do
+    for data_kind,_ in pairs(data[data_section]) do
+      for player_name,_ in pairs(data[data_section][data_kind]._players) do
+        for attack,_ in pairs(data[data_section][data_kind]._players[player_name]._attacks) do
+          local value = data[data_section][data_kind]._players[player_name]._attacks[attack]
+          kikimeter_data = kikimeter_data..data_section.."#"..data_kind.."#"..player_name.."#"..attack.."#"..value.."<br>"
+        end
+      end
+    end
+  end
+end)
+
+-- dashboard: add columns Source (Kikidora) Date (06.03.2024) Raid (AQ40)
+
+
 -- ############
 -- # TESTDATA #
 -- ############

@@ -7,7 +7,8 @@
 - add button to reset specific sections (the one displayed in the bottom meter)
 - add button to list only meter users (for better performance): maybe not a good idea because of boss detection (has to parse every log anyway)
 - maybe add something like threat per second and remove overheal
-- add new table with consumes used, idk how to properly show that, THINK HARD!
+- add new table with consumes used, idk how to properly show that, THINK HARD! (dont show in game, use dashboard instead)
+- add shield absorb to eHeal if possible
 
 possible performance increase:
 broadcast eheal and oheal in one line

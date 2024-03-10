@@ -75,7 +75,8 @@ local function getArLength(arr) -- get array length
 end
 
 local function RemoveSpaces(str)
-  return string.gsub(str, "%s+", "")
+  -- return string.gsub(str, "%s+", "")
+  return string.gsub(str, "^%s*(.-)%s*$", "%1") -- ^..beginning,  $..ends with, *..0 or more repetitions, %1..first match here: (.-)
 end
 
 -- get unitID from name with cache table for better performance
@@ -730,6 +731,7 @@ parser:SetScript("OnEvent", function()
           school = "physical"
         end
         source = RemoveSpaces(source) -- advancedcombatlog compatibility: adds space after name -> remove spaces
+        target = RemoveSpaces(target) -- advancedcombatlog compatibility: adds space after name -> remove spaces
 
         -- Check if boss fight
         if (player_section == "Trash") and (config.data_bosses[player_zone]) then -- only swap to boss if in combat (=Trash), also helps if multiple bosses are fought at the same time (only lists first boss)

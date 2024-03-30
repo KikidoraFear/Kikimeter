@@ -45,7 +45,7 @@ config.sub_width = config.bar_width*config.sub_cols + config.sub_spacing*(config
 config.data_bosses["Ahn'Qiraj"] = {"Arygos", "Battleguard Sartura", "C'Thun", "Emperor Vek'lor", "Emperor Vek'nilash", "Eye of C'Thun", "Fankriss the Unyielding", "Lord Kri",
                                     "Merithra of the Dream", "Ouro", "Princess Huhuran", "Princess Yauj", "The Master's Eye", "The Prophet Skeram", "Vem", "Viscidus"}
 config.data_bosses["Blackwing Lair"] = {"Broodlord Lashlayer", "Chromaggus", "Ebonroc", "Firemaw", "Flamegor", "Lord Victor Nefarius", "Razorgore the Untamed", "Vaelastrasz the Corrupt"}
-config.data_bosses["Molten Core"] = {"Baron Geddon", "Garr", "Gehennas", "Golemagg the Incinerator", "Lucifron", "Magmadar", "Shazzrah", "Sulfuron Harbinger", "Majordomo Executus", "Ragnaros"}
+config.data_bosses["The Molten Core"] = {"Baron Geddon", "Garr", "Gehennas", "Golemagg the Incinerator", "Lucifron", "Magmadar", "Shazzrah", "Sulfuron Harbinger", "Majordomo Executus", "Ragnaros"}
 config.data_bosses["Onyxia's Lair"] = {"Onyxia"}
 config.data_bosses["Ruins of Ahn'Qiraj"] = {"Ayamiss the Hunter", "Buru the Gorger", "General Rajaxx", "Kurinnaxx", "Moam", "Ossirian the Unscarred"}
 config.data_bosses["Zul'Gurub"] = {"High Priestess Jeklik", "High Priest Venoxis", "High Priestess Mar'li", "High Priest Thekal", "High Priestess Arlokk",
